@@ -12,7 +12,8 @@ import Foundation
 struct RegistrarGastoIntent: AppIntent, ForegroundContinuableIntent {
   static let title: LocalizedStringResource = "Registrar gasto"
   static let description = IntentDescription(
-    "Lança uma compra no FinSight sem abrir o app. Use com a automação \"Transação\" do Apple Pay.",
+    // App Store validation (ITMS-90626) rejects intent strings containing "Apple".
+    "Lança uma compra no FinSight sem abrir o app. Use com a automação \"Transação\" da Carteira.",
     categoryName: "Lançamentos"
   )
   static let openAppWhenRun = false
