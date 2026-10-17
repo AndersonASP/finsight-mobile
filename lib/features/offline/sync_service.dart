@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/legacy.dart';
 import '../../core/network/network_providers.dart';
 import '../../core/offline/connectivity.dart';
 import '../accounts/data/accounts_repository.dart';
+import '../bills/application/bills_providers.dart';
 import '../categories/data/categories_repository.dart';
 import '../reports/data/reports_repository.dart';
 import '../transactions/data/fin_transaction.dart';
@@ -68,6 +69,11 @@ class SyncService {
   Future<void> _syncAndRefresh() async {
     await flush();
     if (!_connectivity.isOffline) await refreshCache();
+    // Paid checks made offline, and reminders re-planned from fresh bills
+    // (a new recurring saída, or one paid on another device).
+    final bills = _ref.read(billsControllerProvider);
+    await bills.syncPending();
+    await bills.rescheduleReminders();
   }
 
   void dispose() {

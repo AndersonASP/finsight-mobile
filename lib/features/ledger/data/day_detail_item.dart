@@ -43,6 +43,7 @@ class DayDetailItem {
     this.categoryColor,
     this.installment,
     this.recurring,
+    this.paid,
     this.isPending = false,
   });
 
@@ -55,6 +56,10 @@ class DayDetailItem {
   final Color? categoryColor;
   final InstallmentInfo? installment;
   final RecurringInfo? recurring;
+
+  /// The visual "pago" check — set only for recurring saídas (contas a
+  /// pagar), null for everything else.
+  final bool? paid;
 
   /// True for a lançamento created/edited offline that the server hasn't
   /// received yet — see `PendingChanges`.
@@ -80,6 +85,7 @@ class DayDetailItem {
       recurring: json['recurring'] == null
           ? null
           : RecurringInfo.fromJson(json['recurring'] as Map<String, dynamic>),
+      paid: json['paid'] as bool?,
     );
   }
 }

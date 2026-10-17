@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../bills/application/bills_providers.dart';
+import '../../bills/data/bill.dart';
 import '../../../core/format/money.dart';
 import '../../../core/offline/connectivity.dart';
 import '../../offline/sync_service.dart';
@@ -443,6 +445,7 @@ class _ItemTile extends ConsumerWidget {
                   ),
                 ),
               ],
+              if (item.paid != null) _PaidCheck(item: item),
             ],
           ),
         ],
@@ -454,6 +457,54 @@ class _ItemTile extends ConsumerWidget {
       onTap: _isEditable ? () => _edit(context, ref) : null,
       onLongPress: _isDeletable ? () => _confirmDelete(context, ref) : null,
       child: content,
+    );
+  }
+}
+
+/// The "pago" check of a recurring saída — same state as in "Contas a pagar".
+/// Purely visual: the saldo above never depends on it.
+class _PaidCheck extends ConsumerWidget {
+  const _PaidCheck({required this.item});
+
+  final DayDetailItem item;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pending = ref.watch(pendingPaidProvider)[item.id];
+    final paid = pending?.$2 ?? item.paid ?? false;
+    return InkWell(
+      borderRadius: BorderRadius.circular(6),
+      onTap: () async {
+        await ref
+            .read(billsControllerProvider)
+            .setPaid(
+              Bill(
+                kind: BillKind.recurringSaida,
+                id: item.id,
+                description: item.description,
+                amount: item.amount,
+                dueDate: item.date,
+                paid: paid,
+              ),
+              !paid,
+            );
+        ref.invalidate(
+          dayDetailProvider(
+            DateTime(item.date.year, item.date.month, item.date.day),
+          ),
+        );
+      },
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 32,
+            height: 32,
+            child: Checkbox(value: paid, onChanged: null),
+          ),
+          Text('pago', style: Theme.of(context).textTheme.bodySmall),
+        ],
+      ),
     );
   }
 }

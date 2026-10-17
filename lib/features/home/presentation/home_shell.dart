@@ -1,12 +1,17 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/network_providers.dart';
+import '../../../core/notifications/reminder_notifications.dart';
+import '../../../core/routing/app_router.dart';
 import '../../../core/providers/today_navigation_provider.dart';
 import '../../../core/widgets/liquid_glass_nav_bar.dart';
 import '../../../core/widgets/today_button.dart';
 import '../../accounts/application/accounts_providers.dart';
 import '../../accounts/presentation/accounts_screen.dart';
 import '../../auth/application/auth_controller.dart';
+import '../../bills/application/bills_providers.dart';
+import '../../bills/presentation/bills_screen.dart';
 import '../../budget/application/budget_providers.dart';
 import '../../budget/presentation/budget_screen.dart';
 import '../../cards/application/cards_providers.dart';
@@ -42,6 +47,26 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     // Sends anything queued offline in a previous session and keeps the
     // device's copy of the Saldos tab fresh (see SyncService).
     ref.read(syncServiceProvider).start();
+    unawaited(_initReminders());
+  }
+
+  /// Hooks up bill reminders: a tapped one opens "Contas a pagar" on its
+  /// due date — including the one that launched the app.
+  Future<void> _initReminders() async {
+    final notifications = ref.read(reminderNotificationsProvider);
+    try {
+      await notifications.init(_openBills);
+      final launchDate = await notifications.launchDueDate();
+      if (launchDate != null) _openBills(launchDate);
+    } catch (error) {
+      debugPrint('Bill reminders unavailable: $error');
+    }
+  }
+
+  void _openBills(DateTime dueDate) {
+    rootNavigatorKey.currentState?.push(
+      MaterialPageRoute(builder: (_) => BillsScreen(highlightDate: dueDate)),
+    );
   }
 
   static const _tabs = [
@@ -85,10 +110,24 @@ class _MenuTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final overdue = ref.watch(overdueBillsCountProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Menu'), leading: const TodayButton()),
       body: ListView(
         children: [
+          ListTile(
+            leading: const Icon(Icons.event_available_outlined),
+            title: const Text('Contas a pagar'),
+            trailing: overdue > 0
+                ? Badge(
+                    label: Text('$overdue'),
+                    backgroundColor: Theme.of(context).colorScheme.error,
+                  )
+                : null,
+            onTap: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const BillsScreen())),
+          ),
           ListTile(
             leading: const Icon(Icons.account_balance_outlined),
             title: const Text('Contas'),

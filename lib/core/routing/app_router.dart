@@ -38,11 +38,15 @@ class _AuthRefreshNotifier extends ChangeNotifier {
   }
 }
 
+/// Lets code outside the widget tree (e.g. a tapped notification) push screens.
+final rootNavigatorKey = GlobalKey<NavigatorState>();
+
 final routerProvider = Provider<GoRouter>((ref) {
   final refreshNotifier = _AuthRefreshNotifier(ref);
   ref.onDispose(refreshNotifier.dispose);
 
   return GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: '/',
     refreshListenable: refreshNotifier,
     redirect: (context, state) {
