@@ -8,7 +8,9 @@ import '../../accounts/presentation/accounts_screen.dart';
 import '../../categories/application/categories_providers.dart';
 import '../../categories/data/category.dart';
 import '../../categories/presentation/tag_picker_sheet.dart';
+import '../../../core/offline/connectivity.dart';
 import '../../ledger/application/ledger_providers.dart';
+import '../../offline/sync_service.dart';
 import '../../purchases/presentation/add_purchase_sheet.dart';
 import '../../totals/application/totals_providers.dart';
 import '../data/fin_transaction.dart';
@@ -51,6 +53,7 @@ Future<void> showAddTransactionForm(
 /// Opens the lançamento form pre-filled for editing an existing transaction
 /// — fetched fresh by [transactionId] rather than trusting a possibly-stale
 /// copy the caller might be holding (e.g. a [DayDetailItem] projection).
+/// Offline, it's the device's copy (including a not-yet-synced edit).
 Future<void> showEditTransactionSheet(
   BuildContext context,
   String transactionId,
@@ -71,7 +74,7 @@ class _EditTransactionLoader extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return FutureBuilder<FinTransaction>(
-      future: ref.read(transactionsRepositoryProvider).get(transactionId),
+      future: ref.read(syncServiceProvider).loadTransaction(transactionId),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return Padding(
@@ -353,45 +356,66 @@ class _TransactionFormSheetState extends ConsumerState<_TransactionFormSheet> {
     final description = _descriptionController.text.trim();
     final counterpartAccountId = _isTransfer ? _counterpartAccountId : null;
     try {
-      final repository = ref.read(transactionsRepositoryProvider);
+      final sync = ref.read(syncServiceProvider);
+      final edited = FinTransaction(
+        id: widget.existing?.id ?? '',
+        accountId: accountId,
+        type: _type,
+        amount: amount,
+        date: _date,
+        categoryId: categoryId,
+        description: description,
+        counterpartAccountId: counterpartAccountId,
+      );
+      var savedOffline = false;
       if (widget.existing != null) {
-        await repository.update(
-          widget.existing!.id,
-          accountId: accountId,
-          type: _type,
-          amount: amount,
-          date: _date,
-          categoryId: categoryId,
-          description: description,
-          counterpartAccountId: counterpartAccountId,
+        savedOffline = await sync.updateTransaction(
+          original: widget.existing!,
+          updated: edited,
         );
       } else if (_recurrenceInterval != null) {
-        await repository.createRecurring(
-          accountId: accountId,
-          type: _type,
-          amount: amount,
-          startDate: _date,
-          interval: _recurrenceInterval!,
-          occurrenceCount: _recurrenceIsOpenEnded ? null : _occurrenceCount,
-          isOpenEnded: _recurrenceIsOpenEnded,
-          categoryId: categoryId,
-          description: description,
-          counterpartAccountId: counterpartAccountId,
+        // The server generates the occurrences — no offline version of this.
+        await sync.requireOnline(
+          () => ref
+              .read(transactionsRepositoryProvider)
+              .createRecurring(
+                accountId: accountId,
+                type: _type,
+                amount: amount,
+                startDate: _date,
+                interval: _recurrenceInterval!,
+                occurrenceCount: _recurrenceIsOpenEnded
+                    ? null
+                    : _occurrenceCount,
+                isOpenEnded: _recurrenceIsOpenEnded,
+                categoryId: categoryId,
+                description: description,
+                counterpartAccountId: counterpartAccountId,
+              ),
         );
       } else {
-        await repository.create(
-          accountId: accountId,
-          type: _type,
-          amount: amount,
-          date: _date,
-          categoryId: categoryId,
-          description: description,
-          counterpartAccountId: counterpartAccountId,
-        );
+        savedOffline = await sync.createTransaction(edited);
       }
       ref.invalidate(dailyBalanceProvider);
       ref.invalidate(monthlyTotalsProvider);
-      if (mounted) Navigator.of(context).pop();
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.maybeOf(context);
+      Navigator.of(context).pop();
+      if (savedOffline) {
+        messenger?.showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Salvo no aparelho — será enviado quando a internet voltar.',
+            ),
+          ),
+        );
+      }
+    } on OfflineException catch (e) {
+      setState(
+        () => _error = _recurrenceInterval != null
+            ? 'Sem conexão: lançamentos recorrentes precisam de internet.'
+            : e.message,
+      );
     } catch (e) {
       setState(() => _error = 'Não foi possível salvar: $e');
     } finally {
@@ -565,6 +589,11 @@ class _TransactionFormSheetState extends ConsumerState<_TransactionFormSheet> {
                           : 'adicionar ${_type.label.toLowerCase()}',
                     ),
             ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: _saving ? null : () => Navigator.of(context).pop(),
+              child: const Text('Cancelar'),
+            ),
           ],
         ),
       ),
@@ -676,9 +705,7 @@ class _RecurrencePickerSheetState extends State<_RecurrencePickerSheet> {
               contentPadding: EdgeInsets.zero,
               title: const Text('A perder de vista'),
               subtitle: _isOpenEnded
-                  ? const Text(
-                      'Repete indefinidamente — gera ocorrências cobrindo os próximos ~10 anos; você pode excluir as futuras depois, se quiser parar antes.',
-                    )
+                  ? null
                   : const Text(
                       'Repete sem data pra parar, até você mudar isso',
                     ),

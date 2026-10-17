@@ -131,6 +131,11 @@ class _CategoryTile extends ConsumerWidget {
           );
         },
       ),
+      onTap: () => showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        builder: (_) => _CreateCategorySheet(existing: category),
+      ),
       onLongPress: () => _confirmDelete(context, ref),
     );
   }
@@ -161,7 +166,10 @@ class _CategoryTile extends ConsumerWidget {
 }
 
 class _CreateCategorySheet extends ConsumerStatefulWidget {
-  const _CreateCategorySheet();
+  const _CreateCategorySheet({this.existing});
+
+  /// Non-null when editing an existing tag instead of creating a new one.
+  final Category? existing;
 
   @override
   ConsumerState<_CreateCategorySheet> createState() =>
@@ -169,8 +177,10 @@ class _CreateCategorySheet extends ConsumerStatefulWidget {
 }
 
 class _CreateCategorySheetState extends ConsumerState<_CreateCategorySheet> {
-  final _nameController = TextEditingController();
-  Color _color = categoryColorSwatches.first;
+  late final _nameController = TextEditingController(
+    text: widget.existing?.name,
+  );
+  late Color _color = widget.existing?.color ?? categoryColorSwatches.first;
   bool _saving = false;
 
   @override
@@ -182,9 +192,16 @@ class _CreateCategorySheetState extends ConsumerState<_CreateCategorySheet> {
   Future<void> _save() async {
     if (_nameController.text.trim().isEmpty) return;
     setState(() => _saving = true);
-    await ref
-        .read(categoriesRepositoryProvider)
-        .create(name: _nameController.text.trim(), color: _color);
+    final repository = ref.read(categoriesRepositoryProvider);
+    if (widget.existing != null) {
+      await repository.update(
+        id: widget.existing!.id,
+        name: _nameController.text.trim(),
+        color: _color,
+      );
+    } else {
+      await repository.create(name: _nameController.text.trim(), color: _color);
+    }
     ref.invalidate(categoriesListProvider);
     if (mounted) Navigator.of(context).pop();
   }
@@ -202,7 +219,10 @@ class _CreateCategorySheetState extends ConsumerState<_CreateCategorySheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Nova tag', style: Theme.of(context).textTheme.titleLarge),
+          Text(
+            widget.existing != null ? 'Editar tag' : 'Nova tag',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
           const SizedBox(height: 16),
           TextField(
             controller: _nameController,

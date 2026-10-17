@@ -10,7 +10,8 @@ String formatCurrency(String decimalString) {
 }
 
 /// pt_BR month abbreviations come with a trailing dot (e.g. "out."); we want "out/26".
-String formatMonth(DateTime month) => _monthFormat.format(month).replaceAll('.', '');
+String formatMonth(DateTime month) =>
+    _monthFormat.format(month).replaceAll('.', '');
 
 /// Formats a decimal string (e.g. "10.00") as a rounded percentage ("10%").
 String formatPercent(String decimalString) {

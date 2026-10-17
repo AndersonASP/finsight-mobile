@@ -1,10 +1,17 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/offline/connectivity.dart';
 import '../data/account.dart';
 import '../data/account_balance_history_point.dart';
 import '../data/accounts_repository.dart';
 
 final accountsListProvider = FutureProvider.autoDispose<List<Account>>((ref) {
-  return ref.watch(accountsRepositoryProvider).list();
+  ref.watch(connectivityProvider);
+  final repository = ref.watch(accountsRepositoryProvider);
+  return networkOrCache(
+    ref,
+    network: repository.list,
+    cache: repository.cachedList,
+  );
 });
 
 final accountBalanceHistoryProvider = FutureProvider.autoDispose

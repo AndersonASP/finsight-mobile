@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import '../env/env.dart';
+import '../offline/connectivity.dart';
 import '../storage/token_storage.dart';
 
 /// Builds the shared Dio instance used by every repository.
@@ -12,7 +13,12 @@ Dio buildApiClient({
   required TokenStorage tokenStorage,
   required void Function() onSessionExpired,
 }) {
-  final dio = Dio(BaseOptions(baseUrl: Env.apiBaseUrl, connectTimeout: const Duration(seconds: 15)));
+  final dio = Dio(
+    BaseOptions(
+      baseUrl: Env.apiBaseUrl,
+      connectTimeout: const Duration(seconds: 15),
+    ),
+  );
 
   dio.interceptors.add(
     InterceptorsWrapper(
@@ -25,7 +31,9 @@ Dio buildApiClient({
       },
       onError: (error, handler) async {
         final isUnauthorized = error.response?.statusCode == 401;
-        final isRefreshCall = error.requestOptions.path.contains('/auth/refresh');
+        final isRefreshCall = error.requestOptions.path.contains(
+          '/auth/refresh',
+        );
 
         if (!isUnauthorized || isRefreshCall) {
           handler.next(error);
@@ -42,7 +50,10 @@ Dio buildApiClient({
 
         try {
           final refreshDio = Dio(BaseOptions(baseUrl: Env.apiBaseUrl));
-          final response = await refreshDio.post('/auth/refresh', data: {'refreshToken': refreshToken});
+          final response = await refreshDio.post(
+            '/auth/refresh',
+            data: {'refreshToken': refreshToken},
+          );
           final newAccessToken = response.data['accessToken'] as String;
           await tokenStorage.saveAccessToken(newAccessToken);
 
@@ -50,9 +61,14 @@ Dio buildApiClient({
           retryOptions.headers['Authorization'] = 'Bearer $newAccessToken';
           final retryResponse = await dio.fetch(retryOptions);
           handler.resolve(retryResponse);
-        } catch (_) {
-          await tokenStorage.clear();
-          onSessionExpired();
+        } catch (refreshError) {
+          // Only a refresh the server actually rejected ends the session —
+          // losing the connection mid-refresh mustn't log the user out (and
+          // wipe their offline data along with it).
+          if (!isOfflineError(refreshError)) {
+            await tokenStorage.clear();
+            onSessionExpired();
+          }
           handler.next(error);
         }
       },

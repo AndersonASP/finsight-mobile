@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/application/auth_controller.dart';
@@ -52,6 +53,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         // Still resolving the stored session; stay put until it settles.
         return null;
       }
+      // Called here rather than in `_RootGate`'s build — when the session
+      // turns out unauthenticated, redirect below fires on this same
+      // evaluation and `_RootGate` never gets a build with a resolved
+      // status to react to.
+      FlutterNativeSplash.remove();
       if (authStatus == AuthStatus.unauthenticated && !isLoggingIn) {
         return '/login';
       }
@@ -67,8 +73,10 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
 });
 
-/// Renders the home shell once authenticated, or a splash spinner while the
-/// stored session is still being resolved / redirected.
+/// Renders the home shell once authenticated, or nothing while the stored
+/// session is still being resolved — the native splash screen (preserved in
+/// main.dart, removed by `redirect` above once a status is known) covers
+/// this gap instead of a bare spinner flashing underneath it.
 class _RootGate extends ConsumerWidget {
   const _RootGate();
 
@@ -76,7 +84,7 @@ class _RootGate extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authStatus = _resolveAuthStatus(ref.watch(authControllerProvider));
     if (authStatus != AuthStatus.authenticated) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const SizedBox.shrink();
     }
     return const HomeShell();
   }

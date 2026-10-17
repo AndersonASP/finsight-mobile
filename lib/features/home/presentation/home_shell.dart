@@ -1,16 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/network/network_providers.dart';
 import '../../../core/providers/today_navigation_provider.dart';
+import '../../../core/widgets/liquid_glass_nav_bar.dart';
 import '../../../core/widgets/today_button.dart';
+import '../../accounts/application/accounts_providers.dart';
 import '../../accounts/presentation/accounts_screen.dart';
 import '../../auth/application/auth_controller.dart';
+import '../../budget/application/budget_providers.dart';
 import '../../budget/presentation/budget_screen.dart';
+import '../../cards/application/cards_providers.dart';
 import '../../cards/presentation/cards_screen.dart';
+import '../../categories/application/categories_providers.dart';
 import '../../categories/presentation/tags_screen.dart';
+import '../../debts/application/debts_providers.dart';
 import '../../debts/presentation/debts_screen.dart';
+import '../../ledger/application/ledger_providers.dart';
 import '../../ledger/presentation/saldos_screen.dart';
+import '../../offline/sync_service.dart';
 import '../../reports/presentation/reports_list_screen.dart';
+import '../../scenarios/application/scenarios_providers.dart';
 import '../../scenarios/presentation/scenarios_list_screen.dart';
+import '../../totals/application/totals_providers.dart';
 import '../../totals/presentation/totais_screen.dart';
 import '../../transactions/presentation/add_transaction_sheet.dart';
 
@@ -24,6 +35,14 @@ class HomeShell extends ConsumerStatefulWidget {
 
 class _HomeShellState extends ConsumerState<HomeShell> {
   int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Sends anything queued offline in a previous session and keeps the
+    // device's copy of the Saldos tab fresh (see SyncService).
+    ref.read(syncServiceProvider).start();
+  }
 
   static const _tabs = [
     SaldosScreen(),
@@ -40,88 +59,22 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     });
 
     return Scaffold(
+      // The page runs underneath the floating glass bar, so the blur has
+      // content to show; scrollables get the bar's height as bottom padding.
+      extendBody: true,
       body: IndexedStack(index: _index, children: _tabs),
-      bottomNavigationBar: BottomAppBar(
-        padding: EdgeInsets.zero,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _BottomTabItem(
-              icon: Icons.table_rows_outlined,
-              label: 'Saldos',
-              selected: _index == 0,
-              onTap: () => setState(() => _index = 0),
-            ),
-            _BottomTabItem(
-              icon: Icons.calculate_outlined,
-              label: 'Totais',
-              selected: _index == 1,
-              onTap: () => setState(() => _index = 1),
-            ),
-            _BottomTabItem(
-              icon: Icons.add_circle,
-              label: 'Adicionar',
-              selected: false,
-              onTap: () => showAddTransactionEntryPoint(context),
-            ),
-            _BottomTabItem(
-              icon: Icons.sell_outlined,
-              label: 'Tags',
-              selected: _index == 2,
-              onTap: () => setState(() => _index = 2),
-            ),
-            _BottomTabItem(
-              icon: Icons.menu,
-              label: 'Menu',
-              selected: _index == 3,
-              onTap: () => setState(() => _index = 3),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _BottomTabItem extends StatelessWidget {
-  const _BottomTabItem({
-    required this.icon,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = selected
-        ? Theme.of(context).colorScheme.primary
-        : Theme.of(context).colorScheme.onSurfaceVariant;
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, color: color, size: 22),
-              const SizedBox(height: 2),
-              Text(
-                label,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 11,
-                  fontWeight: selected ? FontWeight.bold : null,
-                ),
-              ),
-            ],
-          ),
-        ),
+      bottomNavigationBar: LiquidGlassNavBar(
+        selectedIndex: _index,
+        onSelected: (index) => setState(() => _index = index),
+        items: const [
+          LiquidGlassNavItem(icon: Icons.table_rows_rounded, label: 'Saldos'),
+          LiquidGlassNavItem(icon: Icons.calculate_rounded, label: 'Totais'),
+          LiquidGlassNavItem(icon: Icons.sell_rounded, label: 'Tags'),
+          LiquidGlassNavItem(icon: Icons.menu_rounded, label: 'Menu'),
+        ],
+        actionIcon: Icons.add_rounded,
+        actionLabel: 'Adicionar',
+        onAction: () => showAddTransactionEntryPoint(context),
       ),
     );
   }
@@ -180,6 +133,17 @@ class _MenuTab extends ConsumerWidget {
           ),
           const Divider(),
           ListTile(
+            leading: Icon(
+              Icons.restart_alt,
+              color: Theme.of(context).colorScheme.error,
+            ),
+            title: Text(
+              'Reiniciar dados',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+            onTap: () => _confirmReset(context, ref),
+          ),
+          ListTile(
             leading: const Icon(Icons.logout),
             title: const Text('Sair'),
             onTap: () => ref.read(authControllerProvider.notifier).signOut(),
@@ -187,5 +151,61 @@ class _MenuTab extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _confirmReset(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Reiniciar todos os dados?'),
+        content: const Text(
+          'Isso apaga permanentemente todas as contas, lançamentos, cartões, '
+          'dívidas, tags e tudo mais que você cadastrou. Não pode ser desfeito.\n\n'
+          'Depois do reinício, o app volta com uma "Conta corrente" e uma '
+          '"Reserva de emergência" zeradas — você pode editar o nome e o '
+          'saldo inicial delas.',
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextButton(
+                style: TextButton.styleFrom(
+                  foregroundColor: Theme.of(dialogContext).colorScheme.error,
+                ),
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                child: const Text('Sim, reiniciar tudo'),
+              ),
+              const SizedBox(height: 4),
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: const Text('Cancelar'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    await ref.read(dioProvider).post('/reset');
+
+    ref.invalidate(accountsListProvider);
+    ref.invalidate(dailyBalanceProvider);
+    ref.invalidate(monthlyTotalsProvider);
+    ref.invalidate(categoriesListProvider);
+    ref.invalidate(cardsListProvider);
+    ref.invalidate(debtsListProvider);
+    ref.invalidate(budgetItemsListProvider);
+    ref.invalidate(budgetSummaryProvider);
+    ref.invalidate(scenariosListProvider);
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Dados reiniciados.')));
+    }
   }
 }

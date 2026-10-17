@@ -33,4 +33,17 @@ class FinTransaction {
       counterpartAccountId: json['counterpartAccountId'] as String?,
     );
   }
+
+  /// Same shape as the API's JSON (so [FinTransaction.fromJson] reads it
+  /// back) — used to persist not-yet-synced lançamentos on the device.
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'accountId': accountId,
+    'type': type.apiValue,
+    'amount': amount,
+    'date': date.toIso8601String(),
+    'categoryId': categoryId,
+    'description': description,
+    'counterpartAccountId': counterpartAccountId,
+  };
 }

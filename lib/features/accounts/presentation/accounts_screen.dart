@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/format/money.dart';
@@ -97,39 +98,87 @@ class _AccountTile extends ConsumerWidget {
             ),
         ],
       ),
+      onTap: () => showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        builder: (_) => _CreateAccountSheet(existing: account),
+      ),
       onLongPress: () => _confirmDelete(context, ref),
     );
   }
 
-  void _confirmDelete(BuildContext context, WidgetRef ref) {
-    showDialog<void>(
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
+    // Fetched before the dialog so the warning can name the real impact —
+    // "this account still has money in it" is the whole point of the warning.
+    final balance = await ref
+        .read(accountsRepositoryProvider)
+        .getBalance(account.id);
+    final hasBalance = (double.tryParse(balance) ?? 0) != 0;
+    if (!context.mounted) return;
+
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Excluir conta?'),
-        content: Text('Remover "${account.name}" permanentemente.'),
+        content: Text(
+          hasBalance
+              ? 'Remover "${account.name}" permanentemente. Ela tem saldo de ${formatCurrency(balance)}: excluir vai apagar todo o histórico de lançamentos dela e afetar seus saldos e projeções.'
+              : 'Remover "${account.name}" permanentemente.',
+        ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
+            onPressed: () => Navigator.of(dialogContext).pop(false),
             child: const Text('Cancelar'),
           ),
           TextButton(
-            onPressed: () async {
-              await ref.read(accountsRepositoryProvider).delete(account.id);
-              ref.invalidate(accountsListProvider);
-              if (dialogContext.mounted) Navigator.of(dialogContext).pop();
-            },
+            onPressed: () => Navigator.of(dialogContext).pop(true),
             child: const Text('Excluir'),
           ),
         ],
       ),
     );
+    if (confirmed != true) return;
+
+    try {
+      await ref.read(accountsRepositoryProvider).delete(account.id);
+      ref.invalidate(accountsListProvider);
+    } on DioException catch (e) {
+      // The backend blocks deletion (instead of crashing or silently
+      // orphaning a card/loan) when something still depends on this account
+      // — surface its specific reason rather than failing silently.
+      final data = e.response?.data;
+      final message = data is Map
+          ? (data['error']?['message'] as String?)
+          : null;
+      if (context.mounted) {
+        showDialog<void>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Não foi possível excluir'),
+            content: Text(message ?? 'Tente novamente em alguns instantes.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Entendi'),
+              ),
+            ],
+          ),
+        );
+      }
+    }
   }
 }
 
 class _CreateAccountSheet extends ConsumerStatefulWidget {
-  const _CreateAccountSheet({this.initialType});
+  const _CreateAccountSheet({this.initialType, this.existing});
 
   final AccountType? initialType;
+
+  /// Non-null when editing an existing account instead of creating a new
+  /// one — the type stays fixed (changing it would retroactively change how
+  /// past activity was ever counted toward saldo), only name and saldo
+  /// inicial are editable.
+  final Account? existing;
 
   @override
   ConsumerState<_CreateAccountSheet> createState() =>
@@ -137,11 +186,14 @@ class _CreateAccountSheet extends ConsumerStatefulWidget {
 }
 
 class _CreateAccountSheetState extends ConsumerState<_CreateAccountSheet> {
-  final _nameController = TextEditingController();
-  final _initialBalanceController = TextEditingController(
-    text: BrlAmountField.fromApiAmount('0'),
+  late final _nameController = TextEditingController(
+    text: widget.existing?.name,
   );
-  late AccountType _type = widget.initialType ?? AccountType.checking;
+  late final _initialBalanceController = TextEditingController(
+    text: BrlAmountField.fromApiAmount(widget.existing?.initialBalance ?? '0'),
+  );
+  late AccountType _type =
+      widget.existing?.type ?? widget.initialType ?? AccountType.checking;
   bool _saving = false;
 
   @override
@@ -154,14 +206,20 @@ class _CreateAccountSheetState extends ConsumerState<_CreateAccountSheet> {
   Future<void> _save() async {
     if (_nameController.text.trim().isEmpty) return;
     setState(() => _saving = true);
-    final account = await ref
-        .read(accountsRepositoryProvider)
-        .create(
-          name: _nameController.text.trim(),
-          type: _type,
-          initialBalance:
-              BrlAmountField.toApiAmount(_initialBalanceController.text) ?? '0',
-        );
+    final repository = ref.read(accountsRepositoryProvider);
+    final initialBalance =
+        BrlAmountField.toApiAmount(_initialBalanceController.text) ?? '0';
+    final account = widget.existing != null
+        ? await repository.update(
+            id: widget.existing!.id,
+            name: _nameController.text.trim(),
+            initialBalance: initialBalance,
+          )
+        : await repository.create(
+            name: _nameController.text.trim(),
+            type: _type,
+            initialBalance: initialBalance,
+          );
     ref.invalidate(accountsListProvider);
     if (mounted) Navigator.of(context).pop(account);
   }
@@ -179,24 +237,33 @@ class _CreateAccountSheetState extends ConsumerState<_CreateAccountSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Nova conta', style: Theme.of(context).textTheme.titleLarge),
+          Text(
+            widget.existing != null ? 'Editar conta' : 'Nova conta',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
           const SizedBox(height: 16),
           TextField(
             controller: _nameController,
             decoration: const InputDecoration(labelText: 'Nome'),
           ),
           const SizedBox(height: 12),
-          DropdownButtonFormField<AccountType>(
-            initialValue: _type,
-            decoration: const InputDecoration(labelText: 'Tipo'),
-            items: AccountType.values
-                .map(
-                  (type) =>
-                      DropdownMenuItem(value: type, child: Text(type.label)),
-                )
-                .toList(),
-            onChanged: (value) => setState(() => _type = value ?? _type),
-          ),
+          if (widget.existing != null)
+            InputDecorator(
+              decoration: const InputDecoration(labelText: 'Tipo'),
+              child: Text(_type.label),
+            )
+          else
+            DropdownButtonFormField<AccountType>(
+              initialValue: _type,
+              decoration: const InputDecoration(labelText: 'Tipo'),
+              items: AccountType.values
+                  .map(
+                    (type) =>
+                        DropdownMenuItem(value: type, child: Text(type.label)),
+                  )
+                  .toList(),
+              onChanged: (value) => setState(() => _type = value ?? _type),
+            ),
           const SizedBox(height: 12),
           BrlAmountFormField(
             controller: _initialBalanceController,

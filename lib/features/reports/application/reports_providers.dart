@@ -20,6 +20,21 @@ final categoryBreakdownProvider =
           .categoryBreakdown(year: month.year, month: month.month);
     });
 
+/// Whether the card-spending report shows one month or the whole year it
+/// belongs to — its own toggle, independent of `reportsSelectedMonthProvider`
+/// (which still supplies the year, and the month when not annual).
+final cardSpendingShowAnnualProvider = StateProvider<bool>((ref) => false);
+
+final cardSpendingProvider = FutureProvider.autoDispose<List<CardSpendingItem>>(
+  (ref) {
+    final month = ref.watch(reportsSelectedMonthProvider);
+    final showAnnual = ref.watch(cardSpendingShowAnnualProvider);
+    return ref
+        .watch(reportsRepositoryProvider)
+        .cardSpending(year: month.year, month: showAnnual ? null : month.month);
+  },
+);
+
 final monthlyTrendProvider =
     FutureProvider.autoDispose<List<MonthlyTrendPoint>>((ref) {
       return ref.watch(reportsRepositoryProvider).monthlyTrend(months: 6);

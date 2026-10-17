@@ -65,9 +65,9 @@ const _savingsGoalMinPercent = 20.0;
 const _savingsGoalMaxPercent = 30.0;
 
 String _savingsGoalStatusText(double percent) {
-  if (percent < _savingsGoalMinPercent) return 'abaixo da meta (20–30%)';
-  if (percent > _savingsGoalMaxPercent) return 'acima da meta (20–30%)';
-  return 'dentro da meta (20–30%)';
+  if (percent < _savingsGoalMinPercent) return 'abaixo da meta (20% a 30%)';
+  if (percent > _savingsGoalMaxPercent) return 'acima da meta (20% a 30%)';
+  return 'dentro da meta (20% a 30%)';
 }
 
 class _TotalsBody extends StatelessWidget {

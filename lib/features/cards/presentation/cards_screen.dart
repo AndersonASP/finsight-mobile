@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/format/money.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/widgets/brl_amount_field.dart';
 import '../../accounts/application/accounts_providers.dart';
 import '../../accounts/data/account.dart';
 import '../../accounts/presentation/accounts_screen.dart';
@@ -60,10 +58,6 @@ class _CardTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final limitFuture = ref
-        .watch(cardsRepositoryProvider)
-        .getAvailableLimit(card.id);
-
     return ListTile(
       leading: const CircleAvatar(
         backgroundColor: AppColors.cartao,
@@ -71,21 +65,6 @@ class _CardTile extends ConsumerWidget {
       ),
       title: Text(card.name),
       subtitle: Text('fecha dia ${card.closingDay} · vence dia ${card.dueDay}'),
-      trailing: FutureBuilder<String>(
-        future: limitFuture,
-        builder: (context, snapshot) {
-          if (!snapshot.hasData)
-            return const SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            );
-          return Text(
-            '${formatCurrency(snapshot.data!)} livre',
-            style: Theme.of(context).textTheme.bodySmall,
-          );
-        },
-      ),
       onTap: () => Navigator.of(
         context,
       ).push(MaterialPageRoute(builder: (_) => CardInvoicesScreen(card: card))),
@@ -102,7 +81,6 @@ class _CreateCardSheet extends ConsumerStatefulWidget {
 
 class _CreateCardSheetState extends ConsumerState<_CreateCardSheet> {
   final _nameController = TextEditingController();
-  final _limitController = TextEditingController();
   final _closingDayController = TextEditingController(text: '1');
   final _dueDayController = TextEditingController(text: '10');
   String? _accountId;
@@ -112,7 +90,6 @@ class _CreateCardSheetState extends ConsumerState<_CreateCardSheet> {
   @override
   void dispose() {
     _nameController.dispose();
-    _limitController.dispose();
     _closingDayController.dispose();
     _dueDayController.dispose();
     super.dispose();
@@ -121,9 +98,7 @@ class _CreateCardSheetState extends ConsumerState<_CreateCardSheet> {
   Future<void> _save() async {
     final closingDay = int.tryParse(_closingDayController.text);
     final dueDay = int.tryParse(_dueDayController.text);
-    final creditLimit = BrlAmountField.toApiAmount(_limitController.text);
     if (_nameController.text.trim().isEmpty ||
-        creditLimit == null ||
         closingDay == null ||
         dueDay == null ||
         _accountId == null) {
@@ -139,7 +114,6 @@ class _CreateCardSheetState extends ConsumerState<_CreateCardSheet> {
           .read(cardsRepositoryProvider)
           .create(
             name: _nameController.text.trim(),
-            creditLimit: creditLimit,
             closingDay: closingDay,
             dueDay: dueDay,
             defaultPaymentAccountId: _accountId!,
@@ -174,11 +148,6 @@ class _CreateCardSheetState extends ConsumerState<_CreateCardSheet> {
             TextField(
               controller: _nameController,
               decoration: const InputDecoration(labelText: 'Nome (ex: Nubank)'),
-            ),
-            const SizedBox(height: 12),
-            BrlAmountFormField(
-              controller: _limitController,
-              labelText: 'Limite',
             ),
             const SizedBox(height: 12),
             Row(

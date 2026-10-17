@@ -5,5 +5,7 @@ import '../../reports/data/reports_repository.dart';
 
 final monthlyTotalsProvider = FutureProvider.autoDispose<MonthlyTotals>((ref) {
   final month = ref.watch(selectedMonthProvider);
-  return ref.watch(reportsRepositoryProvider).monthlyTotals(year: month.year, month: month.month);
+  return ref
+      .watch(reportsRepositoryProvider)
+      .monthlyTotals(year: month.year, month: month.month);
 });

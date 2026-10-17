@@ -43,6 +43,7 @@ class DayDetailItem {
     this.categoryColor,
     this.installment,
     this.recurring,
+    this.isPending = false,
   });
 
   final String id;
@@ -54,6 +55,10 @@ class DayDetailItem {
   final Color? categoryColor;
   final InstallmentInfo? installment;
   final RecurringInfo? recurring;
+
+  /// True for a lançamento created/edited offline that the server hasn't
+  /// received yet — see `PendingChanges`.
+  final bool isPending;
 
   factory DayDetailItem.fromJson(Map<String, dynamic> json) {
     final colorHex = json['categoryColor'] as String?;

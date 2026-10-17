@@ -21,19 +21,27 @@ class CardInvoicesScreen extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(child: Text('Erro: $error')),
         data: (invoices) {
-          if (invoices.isEmpty) return const Center(child: Text('Nenhuma fatura ainda.'));
+          if (invoices.isEmpty)
+            return const Center(child: Text('Nenhuma fatura ainda.'));
           return ListView.separated(
             itemCount: invoices.length,
             separatorBuilder: (_, _) => const Divider(height: 1),
             itemBuilder: (context, index) {
               final invoice = invoices[index];
               return ListTile(
-                title: Text('${invoice.periodMonth.toString().padLeft(2, '0')}/${invoice.periodYear}'),
+                title: Text(
+                  '${invoice.periodMonth.toString().padLeft(2, '0')}/${invoice.periodYear}',
+                ),
                 subtitle: Text(invoice.status.label),
-                trailing: Text(formatCurrency(invoice.total), style: Theme.of(context).textTheme.titleMedium),
-                onTap: () => Navigator.of(
-                  context,
-                ).push(MaterialPageRoute(builder: (_) => InvoiceDetailScreen(invoiceId: invoice.id))),
+                trailing: Text(
+                  formatCurrency(invoice.total),
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => InvoiceDetailScreen(invoiceId: invoice.id),
+                  ),
+                ),
               );
             },
           );

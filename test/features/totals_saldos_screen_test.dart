@@ -121,8 +121,8 @@ void main() {
     expect(find.text(formatCurrency('4350.00')), findsOneWidget); // performance
     expect(find.text('sobrou dinheiro'), findsOneWidget);
     expect(find.text(formatPercent('10.00')), findsOneWidget); // economizado
-    // Fixed 20–30% savings target (no configurable goal menu anymore) — 10% is below it.
-    expect(find.text('abaixo da meta (20–30%)'), findsOneWidget);
+    // Fixed 20%-30% savings target (no configurable goal menu anymore); 10% is below it.
+    expect(find.text('abaixo da meta (20% a 30%)'), findsOneWidget);
     expect(
       find.text(formatCurrency('650.00')),
       findsOneWidget,
@@ -460,7 +460,11 @@ void main() {
         InterceptorsWrapper(
           onRequest: (options, handler) {
             if (options.path == '/reports/daily-balance') {
-              dailyBalanceCallCount++;
+              // Only the month on screen — neighbouring months are also
+              // fetched in the background, for the offline cache.
+              if (options.queryParameters['month'] == DateTime.now().month) {
+                dailyBalanceCallCount++;
+              }
               return handler.resolve(
                 Response(
                   requestOptions: options,

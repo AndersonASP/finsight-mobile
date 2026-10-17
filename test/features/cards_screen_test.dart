@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart';
-import 'package:finsight/core/format/money.dart';
 import 'package:finsight/core/network/network_providers.dart';
 import 'package:finsight/features/cards/presentation/cards_screen.dart';
 import 'package:flutter/material.dart';
@@ -18,13 +17,11 @@ Dio _buildFakeDio() {
               'id': 'card-1',
               'name': 'Nubank',
               'brand': null,
-              'creditLimit': '5000.00',
               'closingDay': 10,
               'dueDay': 17,
               'defaultPaymentAccountId': 'acc-1',
             },
           ],
-          '/cards/card-1/available-limit' => {'availableLimit': '3620.00'},
           _ => <dynamic>[],
         };
         handler.resolve(
@@ -41,25 +38,23 @@ void main() {
     await initializeDateFormatting('pt_BR');
   });
 
-  testWidgets(
-    'Cards screen lists cards with closing/due days and available limit',
-    (WidgetTester tester) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [dioProvider.overrideWithValue(_buildFakeDio())],
-          child: const MaterialApp(home: CardsScreen()),
-        ),
-      );
-      await tester.pumpAndSettle();
+  testWidgets('Cards screen lists cards with closing/due days', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [dioProvider.overrideWithValue(_buildFakeDio())],
+        child: const MaterialApp(home: CardsScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      expect(find.text('Nubank'), findsOneWidget);
-      expect(find.text('fecha dia 10 · vence dia 17'), findsOneWidget);
-      expect(find.text('${formatCurrency('3620.00')} livre'), findsOneWidget);
-    },
-  );
+    expect(find.text('Nubank'), findsOneWidget);
+    expect(find.text('fecha dia 10 · vence dia 17'), findsOneWidget);
+  });
 
   testWidgets(
-    'the "Limite" field masks digits BRL-style instead of taking raw text',
+    'creating a card posts name, closing/due days and payment account',
     (WidgetTester tester) async {
       Map<String, dynamic>? lastCardPosted;
       final dio = Dio(BaseOptions(baseUrl: 'http://localhost'));
@@ -91,7 +86,6 @@ void main() {
                     'id': 'card-new',
                     'name': lastCardPosted!['name'],
                     'brand': null,
-                    'creditLimit': lastCardPosted!['creditLimit'],
                     'closingDay': lastCardPosted!['closingDay'],
                     'dueDay': lastCardPosted!['dueDay'],
                     'defaultPaymentAccountId':
@@ -127,12 +121,6 @@ void main() {
         find.widgetWithText(TextField, 'Nome (ex: Nubank)'),
         'Itaú',
       );
-      // BRL mask: digits push in from the right, last 2 are centavos -> "5.000,00".
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Limite'),
-        '500000',
-      );
-      expect(find.text('5.000,00'), findsOneWidget);
 
       await tester.tap(find.byType(DropdownButtonFormField<String>));
       await tester.pumpAndSettle();
@@ -143,7 +131,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(lastCardPosted, isNotNull);
-      expect(lastCardPosted!['creditLimit'], '5000.00');
+      expect(lastCardPosted!['name'], 'Itaú');
+      expect(lastCardPosted!['closingDay'], 1);
+      expect(lastCardPosted!['dueDay'], 10);
+      expect(lastCardPosted!['defaultPaymentAccountId'], 'acc-1');
     },
   );
 }

@@ -1,18 +1,38 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/network_providers.dart';
+import '../../../core/offline/offline_store.dart';
 import 'fin_transaction.dart';
 import 'recurrence_interval.dart';
 import 'transaction_type.dart';
 
 final transactionsRepositoryProvider = Provider<TransactionsRepository>((ref) {
-  return TransactionsRepository(ref.watch(dioProvider));
+  return TransactionsRepository(
+    ref.watch(dioProvider),
+    ref.watch(offlineStoreProvider),
+  );
 });
 
 class TransactionsRepository {
-  TransactionsRepository(this._dio);
+  TransactionsRepository(this._dio, this._store);
 
   final Dio _dio;
+  final OfflineStore _store;
+
+  /// id → raw transaction JSON, so a lançamento can be opened for editing
+  /// (or deleted) offline — the day-detail rows alone don't carry its account.
+  static const _cacheKey = 'transactions';
+
+  Map<String, dynamic> _readCache() {
+    final data = _store.read(_cacheKey);
+    return data is Map ? Map<String, dynamic>.from(data) : {};
+  }
+
+  FinTransaction? cachedTransaction(String id) {
+    final json = _readCache()[id];
+    if (json is! Map) return null;
+    return FinTransaction.fromJson(Map<String, dynamic>.from(json));
+  }
 
   Future<List<FinTransaction>> list({DateTime? from, DateTime? to}) async {
     final response = await _dio.get(
@@ -22,6 +42,20 @@ class TransactionsRepository {
         if (to != null) 'to': _formatDate(to),
       },
     );
+    if (from != null && to != null) {
+      // Replace this range's cached rows wholesale, so a lançamento deleted
+      // on another device doesn't linger in the cache forever.
+      final cache = _readCache()
+        ..removeWhere((_, json) {
+          final date = DateTime.parse((json as Map)['date'] as String);
+          final day = DateTime(date.year, date.month, date.day);
+          return !day.isBefore(from) && !day.isAfter(to);
+        });
+      for (final json in response.data as List) {
+        cache[(json as Map)['id'] as String] = json;
+      }
+      _store.write(_cacheKey, cache);
+    }
     return (response.data as List)
         .map((json) => FinTransaction.fromJson(json as Map<String, dynamic>))
         .toList();
@@ -29,6 +63,7 @@ class TransactionsRepository {
 
   Future<FinTransaction> get(String id) async {
     final response = await _dio.get('/transactions/$id');
+    _store.write(_cacheKey, _readCache()..[id] = response.data);
     return FinTransaction.fromJson(response.data as Map<String, dynamic>);
   }
 

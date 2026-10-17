@@ -22,7 +22,10 @@ class _FakeTokenStorage extends TokenStorage {
   Future<String?> readRefreshToken() async => null;
 
   @override
-  Future<void> saveTokens({required String accessToken, required String refreshToken}) async {}
+  Future<void> saveTokens({
+    required String accessToken,
+    required String refreshToken,
+  }) async {}
 
   @override
   Future<void> saveAccessToken(String accessToken) async {}
@@ -41,7 +44,10 @@ class _FakeAuthRepository extends AuthRepository {
     if (email != 'user@example.com' || password != 'correct-password') {
       throw DioException(
         requestOptions: RequestOptions(path: '/auth/login'),
-        response: Response(requestOptions: RequestOptions(path: '/auth/login'), statusCode: 401),
+        response: Response(
+          requestOptions: RequestOptions(path: '/auth/login'),
+          statusCode: 401,
+        ),
       );
     }
   }
@@ -70,10 +76,16 @@ Dio _buildFakeDataDio() {
             'diarioMedioRealizado': '0.00',
             'diarioMedioPrevisto': '0.00',
           },
-          '/budget-items/summary' => {'total': '0.00', 'days': 30, 'dailyAverage': '0.00'},
+          '/budget-items/summary' => {
+            'total': '0.00',
+            'days': 30,
+            'dailyAverage': '0.00',
+          },
           _ => <dynamic>[],
         };
-        handler.resolve(Response(requestOptions: options, data: data, statusCode: 200));
+        handler.resolve(
+          Response(requestOptions: options, data: data, statusCode: 200),
+        );
       },
     ),
   );
@@ -85,10 +97,14 @@ void main() {
     await initializeDateFormatting('pt_BR');
   });
 
-  testWidgets('shows the login screen when no session is stored', (WidgetTester tester) async {
+  testWidgets('shows the login screen when no session is stored', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [tokenStorageProvider.overrideWithValue(_FakeTokenStorage())],
+        overrides: [
+          tokenStorageProvider.overrideWithValue(_FakeTokenStorage()),
+        ],
         child: const FinSightApp(),
       ),
     );
@@ -99,21 +115,31 @@ void main() {
     expect(find.widgetWithText(TextFormField, 'Senha'), findsOneWidget);
   });
 
-  testWidgets('wrong credentials show an error and stay on login', (WidgetTester tester) async {
+  testWidgets('wrong credentials show an error and stay on login', (
+    WidgetTester tester,
+  ) async {
     final tokenStorage = _FakeTokenStorage();
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           tokenStorageProvider.overrideWithValue(tokenStorage),
-          authRepositoryProvider.overrideWithValue(_FakeAuthRepository(Dio(), tokenStorage)),
+          authRepositoryProvider.overrideWithValue(
+            _FakeAuthRepository(Dio(), tokenStorage),
+          ),
         ],
         child: const FinSightApp(),
       ),
     );
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.widgetWithText(TextFormField, 'E-mail'), 'user@example.com');
-    await tester.enterText(find.widgetWithText(TextFormField, 'Senha'), 'wrong-password');
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'E-mail'),
+      'user@example.com',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Senha'),
+      'wrong-password',
+    );
     await tester.tap(find.widgetWithText(FilledButton, 'Entrar'));
     await tester.pumpAndSettle();
 
@@ -121,13 +147,17 @@ void main() {
     expect(find.widgetWithText(TextFormField, 'E-mail'), findsOneWidget);
   });
 
-  testWidgets('correct credentials navigate to the home shell', (WidgetTester tester) async {
+  testWidgets('correct credentials navigate to the home shell', (
+    WidgetTester tester,
+  ) async {
     final tokenStorage = _FakeTokenStorage();
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           tokenStorageProvider.overrideWithValue(tokenStorage),
-          authRepositoryProvider.overrideWithValue(_FakeAuthRepository(Dio(), tokenStorage)),
+          authRepositoryProvider.overrideWithValue(
+            _FakeAuthRepository(Dio(), tokenStorage),
+          ),
           dioProvider.overrideWithValue(_buildFakeDataDio()),
         ],
         child: const FinSightApp(),
@@ -135,8 +165,14 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.widgetWithText(TextFormField, 'E-mail'), 'user@example.com');
-    await tester.enterText(find.widgetWithText(TextFormField, 'Senha'), 'correct-password');
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'E-mail'),
+      'user@example.com',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Senha'),
+      'correct-password',
+    );
     await tester.tap(find.widgetWithText(FilledButton, 'Entrar'));
     await tester.pumpAndSettle();
 

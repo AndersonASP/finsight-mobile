@@ -1,18 +1,14 @@
-enum InvoiceStatus { open, closed, paid, partiallyPaid }
+enum InvoiceStatus { open, closed }
 
 extension InvoiceStatusX on InvoiceStatus {
   String get label => switch (this) {
     InvoiceStatus.open => 'Aberta',
     InvoiceStatus.closed => 'Fechada',
-    InvoiceStatus.paid => 'Paga',
-    InvoiceStatus.partiallyPaid => 'Paga parcialmente',
   };
 
   static InvoiceStatus fromApi(String value) => switch (value) {
     'open' => InvoiceStatus.open,
     'closed' => InvoiceStatus.closed,
-    'paid' => InvoiceStatus.paid,
-    'partially_paid' => InvoiceStatus.partiallyPaid,
     _ => throw ArgumentError('Unknown invoice status: $value'),
   };
 }
@@ -27,8 +23,6 @@ class Invoice {
     required this.dueDate,
     required this.status,
     required this.total,
-    required this.paid,
-    required this.remaining,
   });
 
   final String id;
@@ -39,8 +33,6 @@ class Invoice {
   final DateTime dueDate;
   final InvoiceStatus status;
   final String total;
-  final String paid;
-  final String remaining;
 
   factory Invoice.fromJson(Map<String, dynamic> json) {
     return Invoice(
@@ -52,8 +44,6 @@ class Invoice {
       dueDate: DateTime.parse(json['dueDate'] as String),
       status: InvoiceStatusX.fromApi(json['status'] as String),
       total: json['total'] as String,
-      paid: json['paid'] as String,
-      remaining: json['remaining'] as String,
     );
   }
 }
@@ -82,7 +72,8 @@ class InstallmentLine {
       amount: json['amount'] as String,
       dueDate: DateTime.parse(json['dueDate'] as String),
       status: json['status'] as String,
-      purchaseDescription: (json['purchase'] as Map<String, dynamic>)['description'] as String,
+      purchaseDescription:
+          (json['purchase'] as Map<String, dynamic>)['description'] as String,
     );
   }
 }

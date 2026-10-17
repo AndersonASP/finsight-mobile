@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/format/money.dart';
-import '../../totals/application/totals_providers.dart';
+import '../../../core/offline/connectivity.dart';
+import '../../offline/sync_service.dart';
+import '../../purchases/data/purchases_repository.dart';
 import '../../transactions/data/transactions_repository.dart';
+import '../../totals/application/totals_providers.dart';
 import '../../transactions/presentation/add_transaction_sheet.dart';
 import '../application/day_detail_providers.dart';
 import '../application/ledger_providers.dart';
@@ -217,8 +220,13 @@ class _ItemTile extends ConsumerWidget {
   final DayDetailItem item;
 
   /// Card-purchase/installment rows aren't backed by a `Transaction` row —
-  /// there's no edit/delete endpoint for those yet, so they stay read-only.
+  /// there's no edit flow for those, so they stay tap-to-edit-free.
   bool get _isEditable => item.installment == null;
+
+  /// A plain lançamento is always deletable. A card-purchase row only is
+  /// when it's one occurrence of a subscription (`item.recurring != null`)
+  /// — deleting a one-off or a parcelamento installment isn't offered here.
+  bool get _isDeletable => _isEditable || item.recurring != null;
 
   void _refreshAfterChange(WidgetRef ref) {
     final date = DateTime(item.date.year, item.date.month, item.date.day);
@@ -229,33 +237,114 @@ class _ItemTile extends ConsumerWidget {
 
   Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
     // A recurring occurrence offers "só esta" vs. "esta e as futuras"
-    // (like Google Calendar) instead of a plain yes/no confirm.
+    // (like Google Calendar) instead of a plain yes/no confirm. Centered,
+    // stacked buttons instead of AlertDialog's default row — three options
+    // (one of them long) never fit a single row cleanly.
     final scope = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Excluir lançamento?'),
         content: Text('Remover "${item.description}" permanentemente.'),
+        actionsAlignment: MainAxisAlignment.center,
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancelar'),
-          ),
-          if (item.recurring != null)
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop('future'),
-              child: const Text('Esta e as futuras'),
-            ),
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop('this'),
-            child: const Text('Excluir'),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (item.recurring != null) ...[
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop('this'),
+                  child: const Text('Somente esta'),
+                ),
+                const SizedBox(height: 4),
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop('future'),
+                  child: const Text('Esta e as futuras'),
+                ),
+              ] else
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop('this'),
+                  child: const Text('Excluir'),
+                ),
+              const SizedBox(height: 4),
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancelar'),
+              ),
+            ],
           ),
         ],
       ),
     );
     if (scope == null) return;
-    await ref
-        .read(transactionsRepositoryProvider)
-        .delete(item.id, scope: scope);
+
+    // "Esta e as futuras" can silently wipe out months (or years) of a
+    // recurring series — ask once more before committing to it.
+    if (scope == 'future') {
+      if (!context.mounted) return;
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Tem certeza?'),
+          content: const Text(
+            'Isso vai excluir esta ocorrência e todas as futuras desse lançamento recorrente. Não pode ser desfeito.',
+          ),
+          actionsAlignment: MainAxisAlignment.center,
+          actions: [
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(true),
+                  child: const Text('Sim, excluir todas'),
+                ),
+                const SizedBox(height: 4),
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: const Text('Cancelar'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+    }
+
+    if (!context.mounted) return;
+    final sync = ref.read(syncServiceProvider);
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    try {
+      var savedOffline = false;
+      if (item.installment != null) {
+        await sync.requireOnline(
+          () => ref
+              .read(purchasesRepositoryProvider)
+              .delete(item.id, scope: scope),
+        );
+      } else if (scope == 'future') {
+        // The server knows the whole series; offline only "somente esta".
+        await sync.requireOnline(
+          () => ref
+              .read(transactionsRepositoryProvider)
+              .delete(item.id, scope: scope),
+        );
+      } else {
+        savedOffline = await sync.deleteTransaction(item.id);
+      }
+      if (savedOffline) {
+        messenger?.showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Excluído no aparelho — será enviado quando a internet voltar.',
+            ),
+          ),
+        );
+      }
+    } on OfflineException catch (e) {
+      messenger?.showSnackBar(SnackBar(content: Text(e.message)));
+    }
     _refreshAfterChange(ref);
   }
 
@@ -285,11 +374,30 @@ class _ItemTile extends ConsumerWidget {
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  '${item.date.day.toString().padLeft(2, '0')}/${item.date.month.toString().padLeft(2, '0')}',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                Row(
+                  children: [
+                    Text(
+                      '${item.date.day.toString().padLeft(2, '0')}/${item.date.month.toString().padLeft(2, '0')}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    if (item.isPending) ...[
+                      const SizedBox(width: 6),
+                      Icon(
+                        Icons.cloud_upload_outlined,
+                        size: 14,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 2),
+                      Text(
+                        'aguardando envio',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 if (item.categoryName != null) ...[
                   const SizedBox(height: 8),
@@ -341,10 +449,10 @@ class _ItemTile extends ConsumerWidget {
       ),
     );
 
-    if (!_isEditable) return content;
+    if (!_isEditable && !_isDeletable) return content;
     return InkWell(
-      onTap: () => _edit(context, ref),
-      onLongPress: () => _confirmDelete(context, ref),
+      onTap: _isEditable ? () => _edit(context, ref) : null,
+      onLongPress: _isDeletable ? () => _confirmDelete(context, ref) : null,
       child: content,
     );
   }

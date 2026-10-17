@@ -38,6 +38,11 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
   final _amountController = TextEditingController();
   final _descriptionController = TextEditingController();
   int _installments = 1;
+  // Mutually exclusive with installments: a subscription is always a single
+  // charge per month, repeated — never itself split into parcelas.
+  bool _isSubscription = false;
+  int? _subscriptionOccurrenceCount = 12;
+  bool _subscriptionIsOpenEnded = false;
   FinCard? _card;
   Category? _category;
   late DateTime _date = widget.initialDate ?? DateTime.now();
@@ -137,29 +142,76 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
     if (selected != null) setState(() => _installments = selected);
   }
 
+  String get _subscriptionSummary {
+    return _subscriptionIsOpenEnded
+        ? 'mensal, a perder de vista'
+        : 'mensal, ${_subscriptionOccurrenceCount}x';
+  }
+
+  Future<void> _pickSubscriptionDetails() async {
+    final result = await showModalBottomSheet<_SubscriptionChoice>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _SubscriptionDetailsSheet(
+        occurrenceCount: _subscriptionOccurrenceCount,
+        isOpenEnded: _subscriptionIsOpenEnded,
+      ),
+    );
+    if (result != null) {
+      setState(() {
+        _subscriptionOccurrenceCount = result.occurrenceCount;
+        _subscriptionIsOpenEnded = result.isOpenEnded;
+      });
+    }
+  }
+
   Future<void> _save() async {
     final amount = BrlAmountField.toApiAmount(_amountController.text);
     if (_card == null || amount == null) {
       setState(() => _error = 'Preencha cartão e valor.');
       return;
     }
+    if (_isSubscription &&
+        !_subscriptionIsOpenEnded &&
+        (_subscriptionOccurrenceCount == null ||
+            _subscriptionOccurrenceCount! < 1)) {
+      setState(() => _error = 'Informe quantas vezes a assinatura repete.');
+      return;
+    }
     setState(() {
       _saving = true;
       _error = null;
     });
+    final description = _descriptionController.text.trim().isEmpty
+        ? _category?.name ?? 'Compra'
+        : _descriptionController.text.trim();
     try {
-      await ref
-          .read(purchasesRepositoryProvider)
-          .create(
-            cardId: _card!.id,
-            purchaseDate: _date,
-            description: _descriptionController.text.trim().isEmpty
-                ? _category?.name ?? 'Compra'
-                : _descriptionController.text.trim(),
-            amount: amount,
-            categoryId: _category?.id,
-            installmentsCount: _installments,
-          );
+      if (_isSubscription) {
+        await ref
+            .read(purchasesRepositoryProvider)
+            .createRecurring(
+              cardId: _card!.id,
+              description: description,
+              amount: amount,
+              startDate: _date,
+              occurrenceCount: _subscriptionIsOpenEnded
+                  ? null
+                  : _subscriptionOccurrenceCount,
+              isOpenEnded: _subscriptionIsOpenEnded,
+              categoryId: _category?.id,
+            );
+      } else {
+        await ref
+            .read(purchasesRepositoryProvider)
+            .create(
+              cardId: _card!.id,
+              purchaseDate: _date,
+              description: description,
+              amount: amount,
+              categoryId: _category?.id,
+              installmentsCount: _installments,
+            );
+      }
       ref.invalidate(cardInvoicesProvider(_card!.id));
       ref.invalidate(dailyBalanceProvider);
       ref.invalidate(monthlyTotalsProvider);
@@ -222,11 +274,29 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
               onTap: _pickDate,
             ),
             const Divider(height: 1),
-            FormRow(
-              leading: const Icon(Icons.repeat_outlined),
-              title: _installments == 1 ? 'à vista' : '$_installments parcelas',
-              onTap: _pickInstallments,
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              secondary: const Icon(Icons.autorenew),
+              title: const Text('Assinatura (recorrente)'),
+              subtitle: const Text('cobra o mesmo valor todo mês'),
+              value: _isSubscription,
+              onChanged: (value) => setState(() => _isSubscription = value),
             ),
+            const Divider(height: 1),
+            if (_isSubscription)
+              FormRow(
+                leading: const Icon(Icons.event_repeat_outlined),
+                title: _subscriptionSummary,
+                onTap: _pickSubscriptionDetails,
+              )
+            else
+              FormRow(
+                leading: const Icon(Icons.repeat_outlined),
+                title: _installments == 1
+                    ? 'à vista'
+                    : '$_installments parcelas',
+                onTap: _pickInstallments,
+              ),
             const Divider(height: 1),
             FormRow(
               leading: const Icon(Icons.sell_outlined),
@@ -267,3 +337,95 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
 /// Internal marker returned by the card picker when the user chooses
 /// "novo cartão" instead of an existing [FinCard].
 class _CreateNewCard {}
+
+/// Result of [_SubscriptionDetailsSheet] when the user confirms. No
+/// frequency to pick — a card subscription is always monthly.
+class _SubscriptionChoice {
+  const _SubscriptionChoice({
+    required this.occurrenceCount,
+    required this.isOpenEnded,
+  });
+
+  final int? occurrenceCount;
+  final bool isOpenEnded;
+}
+
+class _SubscriptionDetailsSheet extends StatefulWidget {
+  const _SubscriptionDetailsSheet({
+    required this.occurrenceCount,
+    required this.isOpenEnded,
+  });
+
+  final int? occurrenceCount;
+  final bool isOpenEnded;
+
+  @override
+  State<_SubscriptionDetailsSheet> createState() =>
+      _SubscriptionDetailsSheetState();
+}
+
+class _SubscriptionDetailsSheetState extends State<_SubscriptionDetailsSheet> {
+  late bool _isOpenEnded = widget.isOpenEnded;
+  late final _countController = TextEditingController(
+    text: '${widget.occurrenceCount ?? 12}',
+  );
+
+  @override
+  void dispose() {
+    _countController.dispose();
+    super.dispose();
+  }
+
+  void _confirm() {
+    final count = int.tryParse(_countController.text);
+    if (!_isOpenEnded && (count == null || count < 1)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Informe quantas vezes repete.')),
+      );
+      return;
+    }
+    Navigator.of(context).pop(
+      _SubscriptionChoice(
+        occurrenceCount: _isOpenEnded ? null : count,
+        isOpenEnded: _isOpenEnded,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: 16,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Assinatura', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 16),
+          if (!_isOpenEnded)
+            TextField(
+              controller: _countController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Quantas vezes'),
+            ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('A perder de vista'),
+            subtitle: _isOpenEnded
+                ? null
+                : const Text('Repete sem data pra parar, até você mudar isso'),
+            value: _isOpenEnded,
+            onChanged: (value) => setState(() => _isOpenEnded = value),
+          ),
+          const SizedBox(height: 12),
+          FilledButton(onPressed: _confirm, child: const Text('Confirmar')),
+        ],
+      ),
+    );
+  }
+}

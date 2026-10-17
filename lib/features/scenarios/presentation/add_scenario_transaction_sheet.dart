@@ -9,19 +9,31 @@ import '../data/scenarios_repository.dart';
 
 Future<void> showAddScenarioTransactionSheet(
   BuildContext context,
-  String scenarioId,
-) {
+  String scenarioId, {
+  FinTransactionType? initialType,
+  DateTime? initialDate,
+}) {
   return showModalBottomSheet(
     context: context,
     isScrollControlled: true,
-    builder: (_) => _AddScenarioTransactionSheet(scenarioId: scenarioId),
+    builder: (_) => _AddScenarioTransactionSheet(
+      scenarioId: scenarioId,
+      initialType: initialType,
+      initialDate: initialDate,
+    ),
   );
 }
 
 class _AddScenarioTransactionSheet extends ConsumerStatefulWidget {
-  const _AddScenarioTransactionSheet({required this.scenarioId});
+  const _AddScenarioTransactionSheet({
+    required this.scenarioId,
+    this.initialType,
+    this.initialDate,
+  });
 
   final String scenarioId;
+  final FinTransactionType? initialType;
+  final DateTime? initialDate;
 
   @override
   ConsumerState<_AddScenarioTransactionSheet> createState() =>
@@ -32,9 +44,10 @@ class _AddScenarioTransactionSheetState
     extends ConsumerState<_AddScenarioTransactionSheet> {
   final _amountController = TextEditingController();
   final _descriptionController = TextEditingController();
-  FinTransactionType _type = FinTransactionType.saida;
+  late FinTransactionType _type =
+      widget.initialType ?? FinTransactionType.saida;
   String? _accountId;
-  DateTime _date = DateTime.now();
+  late DateTime _date = widget.initialDate ?? DateTime.now();
   bool _saving = false;
   String? _error;
 
@@ -68,6 +81,8 @@ class _AddScenarioTransactionSheetState
           );
       ref.invalidate(scenarioDetailProvider(widget.scenarioId));
       ref.invalidate(scenarioProjectionProvider(widget.scenarioId));
+      ref.invalidate(scenarioDailyBalanceProvider(widget.scenarioId));
+      ref.invalidate(scenarioDayDetailProvider((widget.scenarioId, _date)));
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       setState(() => _error = 'Não foi possível salvar: $e');

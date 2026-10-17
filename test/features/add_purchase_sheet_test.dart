@@ -18,6 +18,7 @@ class _FakeBackend {
   final List<Map<String, dynamic>> _categories;
   final List<Map<String, dynamic>> _accounts;
   Map<String, dynamic>? lastPurchasePosted;
+  Map<String, dynamic>? lastRecurringCardPurchasePosted;
   int _nextCategoryId = 1;
   int _nextCardId = 1;
 
@@ -37,7 +38,6 @@ class _FakeBackend {
               'id': 'card-new-${_nextCardId++}',
               'name': body['name'],
               'brand': null,
-              'creditLimit': body['creditLimit'],
               'closingDay': body['closingDay'],
               'dueDay': body['dueDay'],
               'defaultPaymentAccountId': body['defaultPaymentAccountId'],
@@ -87,6 +87,18 @@ class _FakeBackend {
               ),
             );
           }
+          if (options.path == '/recurring-card-purchases' &&
+              options.method == 'POST') {
+            lastRecurringCardPurchasePosted =
+                options.data as Map<String, dynamic>;
+            return handler.resolve(
+              Response(
+                requestOptions: options,
+                data: {'id': 'recurring-1'},
+                statusCode: 201,
+              ),
+            );
+          }
           handler.resolve(
             Response(
               requestOptions: options,
@@ -107,7 +119,6 @@ void main() {
       'id': 'card-1',
       'name': 'Nubank',
       'brand': null,
-      'creditLimit': '5000.00',
       'closingDay': 10,
       'dueDay': 17,
       'defaultPaymentAccountId': 'acc-1',
@@ -165,6 +176,10 @@ void main() {
       await tester.tap(find.text('Criar tag "Streaming"'));
       await tester.pumpAndSettle();
 
+      // Color-choosing step now, instead of creating immediately.
+      await tester.tap(find.text('Criar tag'));
+      await tester.pumpAndSettle();
+
       expect(find.text('Streaming'), findsOneWidget);
     },
   );
@@ -196,7 +211,6 @@ void main() {
         find.widgetWithText(TextField, 'Nome (ex: Nubank)'),
         'Inter',
       );
-      await tester.enterText(find.widgetWithText(TextField, 'Limite'), '1000');
       await tester.tap(find.byType(DropdownButtonFormField<String>));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Conta Principal'));
@@ -252,6 +266,51 @@ void main() {
       expect(backend.lastPurchasePosted!['amount'], '99.90');
       expect(backend.lastPurchasePosted!['installmentsCount'], 3);
       expect(backend.lastPurchasePosted!['categoryId'], 'cat-1');
+    },
+  );
+
+  testWidgets(
+    'turning on "Assinatura" hides the parcelas picker and posts to /recurring-card-purchases',
+    (WidgetTester tester) async {
+      final backend = _FakeBackend(cards: oneCard);
+      await pumpSheet(tester, backend);
+
+      await tester.tap(find.text('escolher cartão'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Nubank'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField).first, '3990'); // -> 39,90
+
+      await tester.tap(find.text('Assinatura (recorrente)'));
+      await tester.pumpAndSettle();
+
+      // Parcelas picker is gone, replaced by the subscription summary.
+      expect(find.text('à vista'), findsNothing);
+      expect(find.text('mensal, 12x'), findsOneWidget);
+
+      await tester.tap(find.text('mensal, 12x'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Quantas vezes'),
+        '6',
+      );
+      await tester.tap(find.text('Confirmar'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('mensal, 6x'), findsOneWidget);
+
+      await tester.tap(
+        find.widgetWithText(FilledButton, 'adicionar gasto com cartão'),
+      );
+      await tester.pumpAndSettle();
+
+      expect(backend.lastPurchasePosted, isNull);
+      expect(backend.lastRecurringCardPurchasePosted, isNotNull);
+      expect(backend.lastRecurringCardPurchasePosted!['cardId'], 'card-1');
+      expect(backend.lastRecurringCardPurchasePosted!['amount'], '39.90');
+      expect(backend.lastRecurringCardPurchasePosted!['occurrenceCount'], 6);
+      expect(backend.lastRecurringCardPurchasePosted!['isOpenEnded'], false);
     },
   );
 }

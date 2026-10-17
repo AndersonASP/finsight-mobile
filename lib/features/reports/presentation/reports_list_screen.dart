@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'account_balance_history_report_screen.dart';
 import 'budget_vs_actual_report_screen.dart';
+import 'card_spending_report_screen.dart';
 import 'category_breakdown_report_screen.dart';
 import 'monthly_trend_report_screen.dart';
 
@@ -25,6 +26,19 @@ class ReportsListScreen extends StatelessWidget {
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (_) => const CategoryBreakdownReportScreen(),
+              ),
+            ),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.credit_card_outlined),
+            title: const Text('Gastos por cartão'),
+            subtitle: const Text(
+              'quanto foi gasto em cada cartão, por mês ou por ano',
+            ),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const CardSpendingReportScreen(),
               ),
             ),
           ),

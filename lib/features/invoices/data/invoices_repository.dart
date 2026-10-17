@@ -13,8 +13,13 @@ class InvoicesRepository {
   final Dio _dio;
 
   Future<List<Invoice>> list({String? cardId}) async {
-    final response = await _dio.get('/invoices', queryParameters: {'cardId': ?cardId});
-    return (response.data as List).map((json) => Invoice.fromJson(json as Map<String, dynamic>)).toList();
+    final response = await _dio.get(
+      '/invoices',
+      queryParameters: {'cardId': ?cardId},
+    );
+    return (response.data as List)
+        .map((json) => Invoice.fromJson(json as Map<String, dynamic>))
+        .toList();
   }
 
   Future<InvoiceDetail> detail(String invoiceId) async {

@@ -1,13 +1,20 @@
+import '../../ledger/data/saldos_column_filter.dart';
+
 class DailyBalanceDay {
   const DailyBalanceDay({
     required this.day,
     required this.date,
     required this.entrada,
+    this.entradaShadow = false,
     required this.saida,
+    this.saidaShadow = false,
     required this.diario,
     required this.diarioIsForecast,
+    this.diarioShadow = false,
     required this.economia,
+    this.economiaShadow = false,
     required this.cartao,
+    this.cartaoShadow = false,
     required this.saldo,
   });
 
@@ -25,6 +32,24 @@ class DailyBalanceDay {
   final String cartao;
   final String saldo;
 
+  /// True when this column, this day, includes at least one row from a
+  /// scenario being simulated — only ever set when this came from
+  /// `GET /scenarios/:id/daily-balance` instead of the real Saldos endpoint.
+  final bool entradaShadow;
+  final bool saidaShadow;
+  final bool diarioShadow;
+  final bool economiaShadow;
+  final bool cartaoShadow;
+
+  bool shadowFor(SaldosColumnFilter type) => switch (type) {
+    SaldosColumnFilter.entrada => entradaShadow,
+    SaldosColumnFilter.saida => saidaShadow,
+    SaldosColumnFilter.diario => diarioShadow,
+    SaldosColumnFilter.economia => economiaShadow,
+    SaldosColumnFilter.cartao => cartaoShadow,
+    SaldosColumnFilter.todas => false,
+  };
+
   bool get hasActivity =>
       double.parse(entrada) != 0 ||
       double.parse(saida) != 0 ||
@@ -37,11 +62,16 @@ class DailyBalanceDay {
       day: json['day'] as int,
       date: DateTime.parse(json['date'] as String),
       entrada: json['entrada'] as String,
+      entradaShadow: json['entradaShadow'] as bool? ?? false,
       saida: json['saida'] as String,
+      saidaShadow: json['saidaShadow'] as bool? ?? false,
       diario: json['diario'] as String,
       diarioIsForecast: json['diarioIsForecast'] as bool,
+      diarioShadow: json['diarioShadow'] as bool? ?? false,
       economia: json['economia'] as String,
+      economiaShadow: json['economiaShadow'] as bool? ?? false,
       cartao: json['cartao'] as String,
+      cartaoShadow: json['cartaoShadow'] as bool? ?? false,
       saldo: json['saldo'] as String,
     );
   }
@@ -87,6 +117,26 @@ class MonthlyTotals {
       economizadoPercent: json['economizadoPercent'] as String,
       diarioMedioRealizado: json['diarioMedioRealizado'] as String,
       diarioMedioPrevisto: json['diarioMedioPrevisto'] as String,
+    );
+  }
+}
+
+class CardSpendingItem {
+  const CardSpendingItem({
+    required this.cardId,
+    required this.name,
+    required this.total,
+  });
+
+  final String cardId;
+  final String name;
+  final String total;
+
+  factory CardSpendingItem.fromJson(Map<String, dynamic> json) {
+    return CardSpendingItem(
+      cardId: json['cardId'] as String,
+      name: json['name'] as String,
+      total: json['total'] as String,
     );
   }
 }

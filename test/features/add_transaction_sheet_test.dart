@@ -429,6 +429,11 @@ void main() {
       await tester.tap(find.text('Criar tag "Farmácia"'));
       await tester.pumpAndSettle();
 
+      // Color-choosing step now, instead of creating immediately.
+      expect(find.text('Cor da tag "Farmácia"'), findsOneWidget);
+      await tester.tap(find.text('Criar tag'));
+      await tester.pumpAndSettle();
+
       // Back on the form, the tags row now shows the newly created tag.
       expect(find.text('Farmácia'), findsOneWidget);
       expect(find.text('tags'), findsNothing);

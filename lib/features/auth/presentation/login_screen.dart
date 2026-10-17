@@ -28,7 +28,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() => _errorMessage = null);
 
     try {
-      await ref.read(authControllerProvider.notifier).login(_emailController.text.trim(), _passwordController.text);
+      await ref
+          .read(authControllerProvider.notifier)
+          .login(_emailController.text.trim(), _passwordController.text);
     } on DioException catch (e) {
       final message = e.response?.statusCode == 401
           ? 'E-mail ou senha incorretos.'
@@ -55,33 +57,57 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 children: [
                   const Icon(Icons.account_balance_wallet_rounded, size: 56),
                   const SizedBox(height: 12),
-                  Text('FinSight', style: Theme.of(context).textTheme.headlineMedium, textAlign: TextAlign.center),
+                  Text(
+                    'FinSight',
+                    style: Theme.of(context).textTheme.headlineMedium,
+                    textAlign: TextAlign.center,
+                  ),
                   const SizedBox(height: 32),
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
                     autofillHints: const [AutofillHints.email],
-                    decoration: const InputDecoration(labelText: 'E-mail', border: OutlineInputBorder()),
-                    validator: (value) => (value == null || !value.contains('@')) ? 'Informe um e-mail válido' : null,
+                    decoration: const InputDecoration(
+                      labelText: 'E-mail',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) =>
+                        (value == null || !value.contains('@'))
+                        ? 'Informe um e-mail válido'
+                        : null,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _passwordController,
                     obscureText: true,
                     autofillHints: const [AutofillHints.password],
-                    decoration: const InputDecoration(labelText: 'Senha', border: OutlineInputBorder()),
-                    validator: (value) => (value == null || value.isEmpty) ? 'Informe sua senha' : null,
+                    decoration: const InputDecoration(
+                      labelText: 'Senha',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) => (value == null || value.isEmpty)
+                        ? 'Informe sua senha'
+                        : null,
                     onFieldSubmitted: (_) => _submit(),
                   ),
                   if (_errorMessage != null) ...[
                     const SizedBox(height: 12),
-                    Text(_errorMessage!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                    Text(
+                      _errorMessage!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
                   ],
                   const SizedBox(height: 24),
                   FilledButton(
                     onPressed: isLoading ? null : _submit,
                     child: isLoading
-                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
                         : const Text('Entrar'),
                   ),
                 ],

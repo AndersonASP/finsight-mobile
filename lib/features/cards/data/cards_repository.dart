@@ -14,13 +14,14 @@ class CardsRepository {
 
   Future<List<FinCard>> list() async {
     final response = await _dio.get('/cards');
-    return (response.data as List).map((json) => FinCard.fromJson(json as Map<String, dynamic>)).toList();
+    return (response.data as List)
+        .map((json) => FinCard.fromJson(json as Map<String, dynamic>))
+        .toList();
   }
 
   Future<FinCard> create({
     required String name,
     String? brand,
-    required String creditLimit,
     required int closingDay,
     required int dueDay,
     required String defaultPaymentAccountId,
@@ -30,7 +31,6 @@ class CardsRepository {
       data: {
         'name': name,
         'brand': ?brand,
-        'creditLimit': creditLimit,
         'closingDay': closingDay,
         'dueDay': dueDay,
         'defaultPaymentAccountId': defaultPaymentAccountId,
@@ -40,9 +40,4 @@ class CardsRepository {
   }
 
   Future<void> delete(String id) => _dio.delete('/cards/$id');
-
-  Future<String> getAvailableLimit(String cardId) async {
-    final response = await _dio.get('/cards/$cardId/available-limit');
-    return response.data['availableLimit'] as String;
-  }
 }

@@ -213,4 +213,81 @@ void main() {
       expect(find.text('Parcela do carro'), findsNothing);
     },
   );
+
+  testWidgets(
+    'deleting "esta e as futuras" on a recurring item asks for confirmation before actually deleting',
+    (WidgetTester tester) async {
+      String? lastDeleteScope;
+      final recurringItems = [
+        {
+          'id': 'tx-1',
+          'type': 'saida',
+          'description': 'Aluguel',
+          'date': '2026-09-02',
+          'amount': '150.00',
+          'categoryId': null,
+          'categoryName': null,
+          'categoryColor': null,
+          'installment': null,
+          'recurring': {'seriesId': 'series-1', 'occurrenceIndex': 3},
+        },
+      ];
+      final dio = Dio(BaseOptions(baseUrl: 'http://localhost'));
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            if (options.path == '/transactions/tx-1' &&
+                options.method == 'DELETE') {
+              lastDeleteScope = options.queryParameters['scope'] as String?;
+              return handler.resolve(
+                Response(requestOptions: options, statusCode: 204),
+              );
+            }
+            final Object data = switch (options.path) {
+              '/reports/day-detail' => recurringItems,
+              _ => <dynamic>[],
+            };
+            handler.resolve(
+              Response(requestOptions: options, data: data, statusCode: 200),
+            );
+          },
+        ),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [dioProvider.overrideWithValue(dio)],
+          child: MaterialApp(home: DayDetailScreen(date: DateTime(2026, 9, 2))),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.longPress(find.text('Aluguel'));
+      await tester.pumpAndSettle();
+
+      // Three centered, stacked options — no bare "Excluir" for a recurring item.
+      expect(find.text('Somente esta'), findsOneWidget);
+      expect(find.text('Esta e as futuras'), findsOneWidget);
+      expect(find.text('Cancelar'), findsOneWidget);
+
+      await tester.tap(find.text('Esta e as futuras'));
+      await tester.pumpAndSettle();
+
+      // A second "are you sure" step — cancelling it must not delete anything.
+      expect(find.text('Tem certeza?'), findsOneWidget);
+      await tester.tap(find.text('Cancelar').last);
+      await tester.pumpAndSettle();
+      expect(lastDeleteScope, isNull);
+
+      // Doing it again and actually confirming does delete with scope=future.
+      await tester.longPress(find.text('Aluguel'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Esta e as futuras'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Sim, excluir todas'));
+      await tester.pumpAndSettle();
+
+      expect(lastDeleteScope, 'future');
+    },
+  );
 }
