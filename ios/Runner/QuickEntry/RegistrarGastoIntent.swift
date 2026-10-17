@@ -29,10 +29,10 @@ struct RegistrarGastoIntent: AppIntent, ForegroundContinuableIntent {
   @Parameter(title: "Cartão", description: "Nome do cartão na Carteira (opcional).")
   var cartao: String?
 
+  // All three in the sentence itself: Shortcuts hides parameters left out of
+  // it behind "Show More", where the card was easy to miss.
   static var parameterSummary: some ParameterSummary {
-    Summary("Registrar \(\.$valor) em \(\.$estabelecimento)") {
-      \.$cartao
-    }
+    Summary("Registrar \(\.$valor) em \(\.$estabelecimento) no cartão \(\.$cartao)")
   }
 
   func perform() async throws -> some IntentResult & ProvidesDialog {

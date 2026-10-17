@@ -121,12 +121,16 @@ class _HowToCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              '1. Abra o app Atalhos › Automação › Nova automação.\n'
-              '2. Escolha "Transação" e marque seus cartões. Em "Executar", '
-              'escolha "Executar imediatamente".\n'
-              '3. Adicione a ação "Registrar gasto" do FinSight e ligue: '
-              'Valor → Quantia, Estabelecimento → Comerciante, '
-              'Cartão → Cartão ou Passe.\n\n'
+              '1. Abra o app Atalhos › Automação › Nova automação '
+              '(Shortcuts › Automation › New Automation).\n'
+              '2. Escolha "Transação" (Transaction) e marque seus cartões. '
+              'Escolha "Executar imediatamente" (Run Immediately).\n'
+              '3. Adicione a ação "Registrar gasto" do FinSight e toque em '
+              'cada campo para escolher a variável da automação (o nome '
+              'depende do idioma do iPhone):\n'
+              '   • Valor → Quantia (Amount)\n'
+              '   • Estabelecimento → Comerciante (Merchant)\n'
+              '   • Cartão → Cartão ou Passe (Card or Pass)\n\n'
               'A compra é lançada sem abrir o app, com a tag usada da última '
               'vez no mesmo estabelecimento. Sem internet, o FinSight abre '
               'com o formulário já preenchido.',
