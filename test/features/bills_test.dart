@@ -49,6 +49,10 @@ class _FakeNotifications implements ReminderNotifications {
   Future<void> cancelAll() async => scheduled = [];
 
   @override
+  Future<void> scheduleOne(PlannedReminder reminder) async =>
+      scheduled = [...scheduled, reminder];
+
+  @override
   Future<DateTime?> launchDueDate() async => null;
 }
 

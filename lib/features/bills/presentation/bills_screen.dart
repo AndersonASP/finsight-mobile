@@ -1,7 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../core/format/money.dart';
+import '../../../core/notifications/reminder_notifications.dart';
+import '../../../core/notifications/reminder_planner.dart';
 import '../application/bills_providers.dart';
 import '../data/bill.dart';
 
@@ -26,6 +29,12 @@ class BillsScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Contas a pagar'),
         actions: [
+          if (kDebugMode)
+            IconButton(
+              tooltip: 'Enviar lembrete de teste',
+              icon: const Icon(Icons.bug_report_outlined),
+              onPressed: () => _sendTestReminder(context, ref),
+            ),
           IconButton(
             tooltip: remindersEnabled == true
                 ? 'Desativar lembretes'
@@ -63,6 +72,36 @@ class BillsScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  /// Debug only: fires a reminder for the next unpaid bills in 5 seconds
+  /// (press ⌘⇧H in the simulator to see it from the home screen).
+  Future<void> _sendTestReminder(BuildContext context, WidgetRef ref) async {
+    final bills = ref.read(billsProvider).value ?? const [];
+    final next = bills.where((b) => !b.paid).toList();
+    final now = DateTime.now();
+    final sample = next.isEmpty
+        ? null
+        : planReminders(
+            next.where((b) => b.dueDate == next.first.dueDate).toList(),
+            DateTime(2000),
+          ).last;
+    final notifications = ref.read(reminderNotificationsProvider);
+    await notifications.requestPermission();
+    await notifications.scheduleOne(
+      PlannedReminder(
+        id: 1,
+        when: now.add(const Duration(seconds: 5)),
+        title: sample?.title ?? 'Lembrete de teste',
+        body: sample?.body ?? 'Nenhuma conta pendente — só um teste.',
+        dueDate: sample?.dueDate ?? DateTime(now.year, now.month, now.day),
+      ),
+    );
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Lembrete de teste em 5 segundos.')),
+      );
+    }
   }
 
   Future<void> _toggleReminders(

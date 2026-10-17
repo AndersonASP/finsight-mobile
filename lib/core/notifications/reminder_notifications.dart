@@ -20,6 +20,9 @@ abstract class ReminderNotifications {
 
   Future<void> cancelAll();
 
+  /// Schedules [reminder] alone, without touching the others (debug testing).
+  Future<void> scheduleOne(PlannedReminder reminder);
+
   /// Due date of the reminder that launched the app, if any.
   Future<DateTime?> launchDueDate();
 }
@@ -99,23 +102,29 @@ class LocalReminderNotifications implements ReminderNotifications {
   Future<void> replaceAll(List<PlannedReminder> reminders) async {
     await _plugin.cancelAll();
     for (final reminder in reminders) {
-      await _plugin.zonedSchedule(
-        id: reminder.id,
-        scheduledDate: tz.TZDateTime(
-          tz.local,
-          reminder.when.year,
-          reminder.when.month,
-          reminder.when.day,
-          reminder.when.hour,
-          reminder.when.minute,
-        ),
-        notificationDetails: _details,
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-        title: reminder.title,
-        body: reminder.body,
-        payload: '$_payloadPrefix${dateKey(reminder.dueDate)}',
-      );
+      await scheduleOne(reminder);
     }
+  }
+
+  @override
+  Future<void> scheduleOne(PlannedReminder reminder) {
+    return _plugin.zonedSchedule(
+      id: reminder.id,
+      scheduledDate: tz.TZDateTime(
+        tz.local,
+        reminder.when.year,
+        reminder.when.month,
+        reminder.when.day,
+        reminder.when.hour,
+        reminder.when.minute,
+        reminder.when.second,
+      ),
+      notificationDetails: _details,
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      title: reminder.title,
+      body: reminder.body,
+      payload: '$_payloadPrefix${dateKey(reminder.dueDate)}',
+    );
   }
 
   @override
