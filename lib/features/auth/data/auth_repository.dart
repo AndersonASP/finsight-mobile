@@ -29,5 +29,15 @@ class AuthRepository {
     );
   }
 
-  Future<void> signOut() => _tokenStorage.clear();
+  /// Revokes the session server-side (best effort — offline or a failing
+  /// server must not block logging out), then forgets the local tokens.
+  Future<void> signOut() async {
+    final refreshToken = await _tokenStorage.readRefreshToken();
+    if (refreshToken != null) {
+      try {
+        await _dio.post('/auth/logout', data: {'refreshToken': refreshToken});
+      } catch (_) {}
+    }
+    await _tokenStorage.clear();
+  }
 }

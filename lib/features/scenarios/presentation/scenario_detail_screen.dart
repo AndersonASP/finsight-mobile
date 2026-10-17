@@ -160,8 +160,9 @@ class ScenarioDetailScreen extends ConsumerWidget {
                                     .read(scenariosRepositoryProvider)
                                     .discard(scenarioId);
                                 ref.invalidate(scenariosListProvider);
-                                if (context.mounted)
+                                if (context.mounted) {
                                   Navigator.of(context).pop();
+                                }
                               },
                               child: const Text('Descartar'),
                             ),

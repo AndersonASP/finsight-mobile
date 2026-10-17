@@ -33,10 +33,11 @@ class BudgetScreen extends ConsumerWidget {
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (error, _) => Center(child: Text('Erro: $error')),
               data: (items) {
-                if (items.isEmpty)
+                if (items.isEmpty) {
                   return const Center(
                     child: Text('Nenhum item de previsão ainda.'),
                   );
+                }
                 return ListView.separated(
                   itemCount: items.length,
                   separatorBuilder: (_, _) => const Divider(height: 1),

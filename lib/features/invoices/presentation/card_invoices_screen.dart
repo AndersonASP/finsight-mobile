@@ -21,8 +21,9 @@ class CardInvoicesScreen extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(child: Text('Erro: $error')),
         data: (invoices) {
-          if (invoices.isEmpty)
+          if (invoices.isEmpty) {
             return const Center(child: Text('Nenhuma fatura ainda.'));
+          }
           return ListView.separated(
             itemCount: invoices.length,
             separatorBuilder: (_, _) => const Divider(height: 1),

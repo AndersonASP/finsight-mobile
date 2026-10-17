@@ -255,8 +255,9 @@ class _RegisterPaymentSheetState extends ConsumerState<_RegisterPaymentSheet> {
                 return OutlinedButton.icon(
                   onPressed: () async {
                     final created = await showCreateAccountSheet(context);
-                    if (created != null)
+                    if (created != null) {
                       setState(() => _accountId = created.id);
+                    }
                   },
                   icon: const Icon(Icons.add),
                   label: const Text('criar conta'),

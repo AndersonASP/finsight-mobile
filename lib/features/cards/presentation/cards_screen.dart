@@ -38,8 +38,9 @@ class CardsScreen extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(child: Text('Erro: $error')),
         data: (cards) {
-          if (cards.isEmpty)
+          if (cards.isEmpty) {
             return const Center(child: Text('Nenhum cartão cadastrado ainda.'));
+          }
           return ListView.separated(
             itemCount: cards.length,
             separatorBuilder: (_, _) => const Divider(height: 1),
