@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../insights/presentation/savings_capacity_card.dart';
+import '../../offline/live_refresh.dart';
 import '../../reports/presentation/category_breakdown_report_screen.dart';
 import '../../../core/format/money.dart';
 import '../../../core/providers/selected_month_provider.dart';
@@ -67,7 +68,13 @@ class TotaisScreen extends ConsumerWidget {
             child: totalsAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (error, _) => Center(child: Text('Erro: $error')),
-              data: (totals) => _TotalsBody(totals: totals),
+              data: (totals) => RefreshIndicator(
+                onRefresh: () async {
+                  await ref.read(liveRefreshProvider).refreshAll();
+                  await ref.read(monthlyTotalsProvider.future);
+                },
+                child: _TotalsBody(totals: totals),
+              ),
             ),
           ),
         ],

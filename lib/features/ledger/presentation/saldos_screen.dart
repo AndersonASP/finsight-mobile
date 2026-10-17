@@ -6,6 +6,7 @@ import '../../../core/providers/selected_month_provider.dart';
 import '../../../core/providers/today_navigation_provider.dart';
 import '../../../core/widgets/today_button.dart';
 import '../../offline/pending_changes.dart';
+import '../../offline/live_refresh.dart';
 import '../../offline/sync_service.dart';
 import '../../purchases/presentation/add_purchase_sheet.dart';
 import '../../transactions/data/transaction_type.dart';
@@ -101,23 +102,31 @@ class _SaldosScreenState extends ConsumerState<SaldosScreen> {
             _TopHeader(month: month),
             const _OfflineBanner(),
             Expanded(
-              child: MonthlyBalanceTable(
-                daysAsync: daysAsync,
-                filter: filter,
-                scrollToTodaySignal: _scrollToTodaySignal,
-                onFilterChanged: (value) =>
-                    ref.read(saldosColumnFilterProvider.notifier).state = value,
-                onCellTap: (type, date) => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        DayDetailScreen(date: date, initialFilter: type),
+              child: RefreshIndicator(
+                onRefresh: () async {
+                  await ref.read(syncServiceProvider).flush();
+                  await ref.read(liveRefreshProvider).refreshAll();
+                  await ref.read(dailyBalanceProvider.future);
+                },
+                child: MonthlyBalanceTable(
+                  daysAsync: daysAsync,
+                  filter: filter,
+                  scrollToTodaySignal: _scrollToTodaySignal,
+                  onFilterChanged: (value) =>
+                      ref.read(saldosColumnFilterProvider.notifier).state =
+                          value,
+                  onCellTap: (type, date) => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          DayDetailScreen(date: date, initialFilter: type),
+                    ),
                   ),
-                ),
-                onCellLongPress: (type, date) =>
-                    _openAddTransactionFor(context, type, date),
-                onSaldoTap: (date) => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => DayDetailScreen(date: date),
+                  onCellLongPress: (type, date) =>
+                      _openAddTransactionFor(context, type, date),
+                  onSaldoTap: (date) => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => DayDetailScreen(date: date),
+                    ),
                   ),
                 ),
               ),

@@ -22,6 +22,7 @@ import '../../categories/presentation/tags_screen.dart';
 import '../../debts/application/debts_providers.dart';
 import '../../ledger/application/ledger_providers.dart';
 import '../../ledger/presentation/saldos_screen.dart';
+import '../../offline/live_refresh.dart';
 import '../../offline/sync_service.dart';
 import '../../quick_entry/application/quick_entry_providers.dart';
 import '../../quick_entry/presentation/apple_pay_screen.dart';
@@ -50,6 +51,8 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     // Sends anything queued offline in a previous session and keeps the
     // device's copy of the Saldos tab fresh (see SyncService).
     ref.read(syncServiceProvider).start();
+    // Picks up changes made outside the app (Claude, Apple Pay, …).
+    ref.read(liveRefreshProvider).start();
     unawaited(_initReminders());
     // Keeps the iOS side (Apple Pay automation) logged in as this session.
     unawaited(ref.read(tokenStorageProvider).mirrorToNative());
