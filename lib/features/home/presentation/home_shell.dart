@@ -19,7 +19,6 @@ import '../../cards/presentation/cards_screen.dart';
 import '../../categories/application/categories_providers.dart';
 import '../../categories/presentation/tags_screen.dart';
 import '../../debts/application/debts_providers.dart';
-import '../../debts/presentation/debts_screen.dart';
 import '../../ledger/application/ledger_providers.dart';
 import '../../ledger/presentation/saldos_screen.dart';
 import '../../offline/sync_service.dart';
@@ -30,6 +29,8 @@ import '../../scenarios/presentation/scenarios_list_screen.dart';
 import '../../totals/application/totals_providers.dart';
 import '../../totals/presentation/totais_screen.dart';
 import '../../transactions/presentation/add_transaction_sheet.dart';
+import '../../wealth/application/wealth_providers.dart';
+import '../../wealth/presentation/wealth_screen.dart';
 
 /// Bottom-nav shell mirroring the reference app's tabs (saldos / totais / tags / menu).
 class HomeShell extends ConsumerStatefulWidget {
@@ -92,7 +93,12 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     );
   }
 
-  static const _tabs = [SaldosScreen(), TotaisScreen(), _MenuTab()];
+  static const _tabs = [
+    SaldosScreen(),
+    TotaisScreen(),
+    WealthScreen(),
+    _MenuTab(),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -112,6 +118,10 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         items: const [
           LiquidGlassNavItem(icon: Icons.table_rows_rounded, label: 'Saldos'),
           LiquidGlassNavItem(icon: Icons.calculate_rounded, label: 'Totais'),
+          LiquidGlassNavItem(
+            icon: Icons.account_balance_wallet_rounded,
+            label: 'Patrimônio',
+          ),
           LiquidGlassNavItem(icon: Icons.menu_rounded, label: 'Menu'),
         ],
         actionIcon: Icons.add_rounded,
@@ -165,11 +175,6 @@ class _MenuTab extends ConsumerWidget {
             icon: Icons.pie_chart_outline,
             title: 'Previsão de diário',
             builder: (_) => const BudgetScreen(),
-          ),
-          _MenuItem(
-            icon: Icons.warning_amber_outlined,
-            title: 'Dívidas',
-            builder: (_) => const DebtsScreen(),
           ),
           const _MenuSection('Ferramentas'),
           _MenuItem(
@@ -323,6 +328,8 @@ class _SettingsScreen extends ConsumerWidget {
     ref.invalidate(budgetSummaryProvider);
     ref.invalidate(scenariosListProvider);
     ref.invalidate(billsProvider);
+    ref.invalidate(wealthSummaryProvider);
+    ref.invalidate(wealthHistoryProvider);
 
     if (context.mounted) {
       ScaffoldMessenger.of(

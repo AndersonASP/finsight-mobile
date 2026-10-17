@@ -1,27 +1,33 @@
-enum DebtType { consignado, emprestimoPessoal, cartaoVencido, outro }
+enum DebtType {
+  consignado,
+  emprestimoPessoal,
+  financiamento,
+  cartaoVencido,
+  chequeEspecial,
+  outro,
+}
 
 extension DebtTypeX on DebtType {
   String get apiValue => switch (this) {
     DebtType.consignado => 'consignado',
     DebtType.emprestimoPessoal => 'emprestimo_pessoal',
+    DebtType.financiamento => 'financiamento',
     DebtType.cartaoVencido => 'cartao_vencido',
+    DebtType.chequeEspecial => 'cheque_especial',
     DebtType.outro => 'outro',
   };
 
   String get label => switch (this) {
     DebtType.consignado => 'Consignado',
     DebtType.emprestimoPessoal => 'Empréstimo pessoal',
-    DebtType.cartaoVencido => 'Cartão vencido',
+    DebtType.financiamento => 'Financiamento',
+    DebtType.cartaoVencido => 'Cartão (rotativo / atrasado)',
+    DebtType.chequeEspecial => 'Cheque especial',
     DebtType.outro => 'Outro',
   };
 
-  static DebtType fromApi(String value) => switch (value) {
-    'consignado' => DebtType.consignado,
-    'emprestimo_pessoal' => DebtType.emprestimoPessoal,
-    'cartao_vencido' => DebtType.cartaoVencido,
-    'outro' => DebtType.outro,
-    _ => throw ArgumentError('Unknown debt type: $value'),
-  };
+  static DebtType fromApi(String value) =>
+      DebtType.values.firstWhere((t) => t.apiValue == value);
 }
 
 enum DebtStatus { emDia, vencida, negociada, paga }
@@ -34,21 +40,13 @@ extension DebtStatusX on DebtStatus {
     DebtStatus.paga => 'paga',
   };
 
-  String get label => switch (this) {
-    DebtStatus.emDia => 'Em dia',
-    DebtStatus.vencida => 'Vencida',
-    DebtStatus.negociada => 'Negociada',
-    DebtStatus.paga => 'Paga',
-  };
-
-  static DebtStatus fromApi(String value) => switch (value) {
-    'em_dia' => DebtStatus.emDia,
-    'vencida' => DebtStatus.vencida,
-    'negociada' => DebtStatus.negociada,
-    'paga' => DebtStatus.paga,
-    _ => throw ArgumentError('Unknown debt status: $value'),
-  };
+  static DebtStatus fromApi(String value) =>
+      DebtStatus.values.firstWhere((s) => s.apiValue == value);
 }
+
+/// How the app knows what's left: by the calendar (fixed installments —
+/// nothing to register) or a balance the user informs from time to time.
+enum DebtKind { parcelaFixa, saldoVariavel }
 
 class Debt {
   const Debt({
@@ -56,12 +54,13 @@ class Debt {
     required this.creditor,
     required this.type,
     required this.status,
+    required this.kind,
     required this.currentBalance,
-    this.originalAmount,
     this.installmentAmount,
     this.installmentDueDay,
     this.installmentsTotal,
-    required this.installmentsPaid,
+    this.payoffAmount,
+    this.monthlyInterestRate,
     this.notes,
   });
 
@@ -69,12 +68,13 @@ class Debt {
   final String creditor;
   final DebtType type;
   final DebtStatus status;
+  final DebtKind kind;
   final String currentBalance;
-  final String? originalAmount;
   final String? installmentAmount;
   final int? installmentDueDay;
   final int? installmentsTotal;
-  final int installmentsPaid;
+  final String? payoffAmount;
+  final String? monthlyInterestRate;
   final String? notes;
 
   factory Debt.fromJson(Map<String, dynamic> json) {
@@ -83,55 +83,16 @@ class Debt {
       creditor: json['creditor'] as String,
       type: DebtTypeX.fromApi(json['type'] as String),
       status: DebtStatusX.fromApi(json['status'] as String),
+      kind: json['kind'] == 'parcela_fixa'
+          ? DebtKind.parcelaFixa
+          : DebtKind.saldoVariavel,
       currentBalance: json['currentBalance'] as String,
-      originalAmount: json['originalAmount'] as String?,
       installmentAmount: json['installmentAmount'] as String?,
       installmentDueDay: json['installmentDueDay'] as int?,
       installmentsTotal: json['installmentsTotal'] as int?,
-      installmentsPaid: json['installmentsPaid'] as int,
+      payoffAmount: json['payoffAmount'] as String?,
+      monthlyInterestRate: json['monthlyInterestRate'] as String?,
       notes: json['notes'] as String?,
-    );
-  }
-}
-
-class DebtPayment {
-  const DebtPayment({
-    required this.id,
-    required this.paymentDate,
-    required this.amount,
-    required this.balanceAfter,
-    this.notes,
-  });
-
-  final String id;
-  final DateTime paymentDate;
-  final String amount;
-  final String balanceAfter;
-  final String? notes;
-
-  factory DebtPayment.fromJson(Map<String, dynamic> json) {
-    return DebtPayment(
-      id: json['id'] as String,
-      paymentDate: DateTime.parse(json['paymentDate'] as String),
-      amount: json['amount'] as String,
-      balanceAfter: json['balanceAfter'] as String,
-      notes: json['notes'] as String?,
-    );
-  }
-}
-
-class DebtDetail {
-  const DebtDetail({required this.debt, required this.payments});
-
-  final Debt debt;
-  final List<DebtPayment> payments;
-
-  factory DebtDetail.fromJson(Map<String, dynamic> json) {
-    return DebtDetail(
-      debt: Debt.fromJson(json['debt'] as Map<String, dynamic>),
-      payments: (json['payments'] as List)
-          .map((p) => DebtPayment.fromJson(p as Map<String, dynamic>))
-          .toList(),
     );
   }
 }
