@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../insights/presentation/savings_capacity_card.dart';
 import '../../reports/presentation/category_breakdown_report_screen.dart';
 import '../../../core/format/money.dart';
 import '../../../core/providers/selected_month_provider.dart';
@@ -102,7 +103,9 @@ class _TotalsBody extends StatelessWidget {
         economizadoPercent <= _savingsGoalMaxPercent;
 
     return ListView(
+      padding: const EdgeInsets.only(bottom: 120),
       children: [
+        const SavingsCapacityCard(),
         const _SectionLabel('cálculos do mês'),
         ListTile(
           title: const Text('performance'),

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/network_providers.dart';
 import '../../../core/notifications/reminder_notifications.dart';
 import '../../../core/routing/app_router.dart';
+import '../../insights/data/savings_capacity.dart';
 import '../../../core/providers/today_navigation_provider.dart';
 import '../../../core/widgets/liquid_glass_nav_bar.dart';
 import '../../../core/widgets/today_button.dart';
@@ -100,6 +101,14 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     _MenuTab(),
   ];
 
+  /// Tabs stay mounted (IndexedStack), so the derived views are refreshed
+  /// on entry — a lançamento made elsewhere changes both.
+  void _selectTab(int index) {
+    if (index == 1) ref.invalidate(savingsCapacityProvider);
+    if (index == 2) refreshWealth(ref);
+    setState(() => _index = index);
+  }
+
   @override
   Widget build(BuildContext context) {
     // Jumping to "today" always means looking at the Saldos tab.
@@ -114,7 +123,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       body: IndexedStack(index: _index, children: _tabs),
       bottomNavigationBar: LiquidGlassNavBar(
         selectedIndex: _index,
-        onSelected: (index) => setState(() => _index = index),
+        onSelected: _selectTab,
         items: const [
           LiquidGlassNavItem(icon: Icons.table_rows_rounded, label: 'Saldos'),
           LiquidGlassNavItem(icon: Icons.calculate_rounded, label: 'Totais'),
