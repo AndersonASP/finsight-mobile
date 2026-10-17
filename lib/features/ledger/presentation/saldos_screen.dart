@@ -27,14 +27,9 @@ void _openAddTransactionFor(
 ) {
   switch (type) {
     case SaldosColumnFilter.cartao:
-      // Cartão cells sit on invoice due dates, so the pressed day isn't when
-      // the purchase happened: a future day means "bought today" (the cycle
-      // then puts it on the right due date); a past day is a late entry.
-      final today = DateTime.now();
-      final purchaseDate = date.isAfter(today)
-          ? DateTime(today.year, today.month, today.day)
-          : date;
-      showAddPurchaseSheet(context, initialDate: purchaseDate);
+      // The pressed day is the purchase date — past or future; the card's
+      // cycle then decides which invoice (and due date) it lands on.
+      showAddPurchaseSheet(context, initialDate: date);
     case SaldosColumnFilter.entrada:
       showAddTransactionForm(
         context,
