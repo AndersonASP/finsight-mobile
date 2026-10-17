@@ -20,12 +20,30 @@ struct Summary: Decodable {
     let dueDate: String
   }
 
+  struct RedSea: Decodable {
+    struct Month: Decodable {
+      let mes: String
+      let menorSaldo: String?
+      let precisaAteOMes: String
+    }
+
+    let limiteVerde: String
+    let horizonteMeses: Int
+    let precisaEntrar: String
+    let paraSairDoNegativo: String
+    let piorDia: Lowest?
+    let primeiroMesNoVermelho: String?
+    let meses: [Month]
+  }
+
   let asOf: String
   let saldoHoje: String
   let saldoFimDoMes: String?
   let menorSaldo: Lowest?
   let podeGuardar: String
   let proximasContas: [Bill]
+  /// Optional: snapshots written before the "mar vermelho" existed lack it.
+  let marVermelho: RedSea?
 
   static func load() -> Summary? {
     guard let json = UserDefaults(suiteName: appGroupId)?.string(forKey: summaryKey),
@@ -43,7 +61,23 @@ struct Summary: Decodable {
     proximasContas: [
       Bill(description: "Internet", amount: "120.00", dueDate: "2026-10-20"),
       Bill(description: "Aluguel", amount: "1500.00", dueDate: "2026-10-30"),
-    ]
+    ],
+    marVermelho: RedSea(
+      limiteVerde: "500.00",
+      horizonteMeses: 12,
+      precisaEntrar: "2350.00",
+      paraSairDoNegativo: "1850.00",
+      piorDia: Lowest(date: "2027-02-10", value: "-1850.00"),
+      primeiroMesNoVermelho: "2026-11",
+      meses: [
+        RedSea.Month(mes: "2026-10", menorSaldo: "820.00", precisaAteOMes: "0.00"),
+        RedSea.Month(mes: "2026-11", menorSaldo: "-420.00", precisaAteOMes: "920.00"),
+        RedSea.Month(mes: "2026-12", menorSaldo: "-980.00", precisaAteOMes: "1480.00"),
+        RedSea.Month(mes: "2027-01", menorSaldo: "-1300.00", precisaAteOMes: "1800.00"),
+        RedSea.Month(mes: "2027-02", menorSaldo: "-1850.00", precisaAteOMes: "2350.00"),
+        RedSea.Month(mes: "2027-03", menorSaldo: "250.00", precisaAteOMes: "2350.00"),
+      ]
+    )
   )
 }
 
@@ -89,6 +123,33 @@ private enum Format {
     return out.string(from: date)
   }
 
+  /// "out/26" for "2026-10".
+  static func month(_ ym: String) -> String {
+    let parser = DateFormatter()
+    parser.locale = Locale(identifier: "en_US_POSIX")
+    parser.dateFormat = "yyyy-MM"
+    guard let date = parser.date(from: ym) else { return ym }
+    let out = DateFormatter()
+    out.locale = Locale(identifier: "pt_BR")
+    out.dateFormat = "MMM/yy"
+    return out.string(from: date).replacingOccurrences(of: ".", with: "")
+  }
+
+  /// "15/02/27" for a YYYY-MM-DD date.
+  static func fullDay(_ iso: String) -> String {
+    let parser = DateFormatter()
+    parser.locale = Locale(identifier: "en_US_POSIX")
+    parser.dateFormat = "yyyy-MM-dd"
+    guard let date = parser.date(from: iso) else { return iso }
+    let out = DateFormatter()
+    out.dateFormat = "dd/MM/yy"
+    return out.string(from: date)
+  }
+
+  static func isZero(_ value: String) -> Bool {
+    NSDecimalNumber(string: value).compare(NSDecimalNumber.zero) != .orderedDescending
+  }
+
   static func updatedAt(_ iso: String) -> String {
     let parser = ISO8601DateFormatter()
     parser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -127,6 +188,15 @@ struct SummaryProvider: TimelineProvider {
 
 private let saldoGreen = Color(red: 0.18, green: 0.55, blue: 0.34)
 private let saldoRed = Color(red: 0.82, green: 0.33, blue: 0.12)
+private let saldoYellow = Color(red: 0.80, green: 0.62, blue: 0.10)
+
+/// Same tiers as the Saldos table: red below zero, yellow up to the green line.
+private func tierColor(_ value: String, green: String) -> Color {
+  let v = NSDecimalNumber(string: value)
+  if v.compare(NSDecimalNumber.zero) == .orderedAscending { return saldoRed }
+  if v.compare(NSDecimalNumber(string: green)) == .orderedAscending { return saldoYellow }
+  return saldoGreen
+}
 
 private struct EmptyState: View {
   var body: some View {
@@ -231,6 +301,129 @@ private struct RectangularView: View {
   }
 }
 
+// MARK: - Mar vermelho
+
+private struct RedSeaHeadline: View {
+  let red: Summary.RedSea
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 2) {
+      if Format.isZero(red.precisaEntrar) {
+        Text("Caixa no verde").font(.headline).foregroundStyle(saldoGreen)
+        Text("nos próximos \(red.horizonteMeses) meses").font(.caption2).foregroundStyle(.secondary)
+      } else {
+        Text("Para ficar no verde").font(.caption2).foregroundStyle(.secondary)
+        Text(Format.brl(red.precisaEntrar, short: true))
+          .font(.title3)
+          .bold()
+          .minimumScaleFactor(0.6)
+          .lineLimit(1)
+          .foregroundStyle(saldoRed)
+          .privacySensitive()
+        Text("precisa entrar").font(.caption2).foregroundStyle(.secondary)
+        if let worst = red.piorDia {
+          Text("pior dia: \(Format.fullDay(worst.date))")
+            .font(.system(size: 10))
+            .foregroundStyle(.secondary)
+        }
+      }
+    }
+  }
+}
+
+private struct RedSeaMonths: View {
+  let red: Summary.RedSea
+  let count: Int
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 3) {
+      Text("Menor saldo do mês").font(.caption2).foregroundStyle(.secondary)
+      ForEach(Array(red.meses.prefix(count).enumerated()), id: \.offset) { _, month in
+        HStack(spacing: 4) {
+          Circle()
+            .fill(tierColor(month.menorSaldo ?? "0", green: red.limiteVerde))
+            .frame(width: 7, height: 7)
+          Text(Format.month(month.mes)).font(.caption2)
+          Spacer(minLength: 2)
+          Text(month.menorSaldo.map { Format.brl($0, short: true) } ?? "—")
+            .font(.caption2)
+            .foregroundStyle(tierColor(month.menorSaldo ?? "0", green: red.limiteVerde))
+            .privacySensitive()
+        }
+      }
+    }
+  }
+}
+
+struct RedSeaWidgetView: View {
+  @Environment(\.widgetFamily) private var family
+  let entry: SummaryEntry
+
+  var body: some View {
+    Group {
+      if let red = entry.summary?.marVermelho {
+        switch family {
+        case .systemMedium:
+          HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading) {
+              Text("Mar vermelho").font(.caption).bold()
+              RedSeaHeadline(red: red)
+              Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            RedSeaMonths(red: red, count: 6).frame(maxWidth: .infinity)
+          }
+        case .accessoryRectangular:
+          VStack(alignment: .leading, spacing: 1) {
+            if Format.isZero(red.precisaEntrar) {
+              Text("Caixa no verde ✓").font(.headline)
+              Text("próximos \(red.horizonteMeses) meses").font(.caption)
+            } else {
+              Text("Verde: falta \(Format.brl(red.precisaEntrar, short: true))")
+                .font(.headline)
+                .privacySensitive()
+              if let first = red.primeiroMesNoVermelho {
+                Text("vermelho a partir de \(Format.month(first))").font(.caption)
+              }
+            }
+          }
+          .frame(maxWidth: .infinity, alignment: .leading)
+        case .accessoryInline:
+          if Format.isZero(red.precisaEntrar) {
+            Text("Caixa no verde ✓")
+          } else {
+            Text("Falta \(Format.brl(red.precisaEntrar, short: true)) p/ verde").privacySensitive()
+          }
+        default:
+          VStack(alignment: .leading, spacing: 4) {
+            Text("Mar vermelho").font(.caption).bold()
+            RedSeaHeadline(red: red)
+            Spacer(minLength: 0)
+          }
+          .frame(maxWidth: .infinity, alignment: .leading)
+        }
+      } else {
+        EmptyState()
+      }
+    }
+    .containerBackground(for: .widget) { Color.clear }
+  }
+}
+
+struct RedSeaWidget: Widget {
+  // Must match `_iOSRedSeaKind` in widget_sync.dart.
+  let kind = "FinSightRedSea"
+
+  var body: some WidgetConfiguration {
+    StaticConfiguration(kind: kind, provider: SummaryProvider()) { entry in
+      RedSeaWidgetView(entry: entry)
+    }
+    .configurationDisplayName("Mar vermelho")
+    .description("Quanto dinheiro novo precisa entrar para o saldo ficar no verde nos próximos meses.")
+    .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryInline])
+  }
+}
+
 struct FinSightWidgetView: View {
   @Environment(\.widgetFamily) private var family
   let entry: SummaryEntry
@@ -271,5 +464,6 @@ struct FinSightWidget: Widget {
 struct FinSightWidgetBundle: WidgetBundle {
   var body: some Widget {
     FinSightWidget()
+    RedSeaWidget()
   }
 }

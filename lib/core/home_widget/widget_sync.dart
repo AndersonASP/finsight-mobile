@@ -6,7 +6,7 @@ import '../network/network_providers.dart';
 
 /// Shared with the WidgetKit extension (ios/FinSightWidget).
 const widgetAppGroupId = 'group.dev.andalsp.finsight';
-const _iOSWidgetKind = 'FinSightWidget';
+const _iOSWidgetKinds = ['FinSightWidget', 'FinSightRedSea'];
 const _summaryKey = 'summary';
 
 final widgetSyncProvider = Provider<WidgetSync>(WidgetSync.new);
@@ -48,9 +48,15 @@ class WidgetSync {
         _summaryKey,
         jsonEncode(response.data),
       );
-      await HomeWidget.updateWidget(iOSName: _iOSWidgetKind);
+      await _reloadWidgets();
     } catch (error) {
       debugPrint('Widget refresh skipped: $error');
+    }
+  }
+
+  Future<void> _reloadWidgets() async {
+    for (final kind in _iOSWidgetKinds) {
+      await HomeWidget.updateWidget(iOSName: kind);
     }
   }
 
@@ -60,7 +66,7 @@ class WidgetSync {
     try {
       await _init();
       await HomeWidget.saveWidgetData<String>(_summaryKey, null);
-      await HomeWidget.updateWidget(iOSName: _iOSWidgetKind);
+      await _reloadWidgets();
     } catch (error) {
       debugPrint('Widget clear skipped: $error');
     }
