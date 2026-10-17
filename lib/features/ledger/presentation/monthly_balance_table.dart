@@ -8,7 +8,9 @@ import '../../reports/data/daily_balance_day.dart';
 import '../data/saldos_column_filter.dart';
 
 const _dayColumnWidth = 40.0;
-const _valuesColumnWidth = 250.0;
+// Narrow enough to leave the saldo column room for "-R\$ 3.353,34" on one
+// line on a ~390pt-wide iPhone; the type values still fit with room to spare.
+const _valuesColumnWidth = 200.0;
 
 /// A lighter line than the theme's default divider — the full-strength one
 /// reads as too heavy for a dense table with this many rows.
@@ -423,12 +425,19 @@ class _DayRow extends StatelessWidget {
                     horizontal: 8,
                     vertical: 6,
                   ),
-                  child: Text(
-                    formatCurrency(day.saldo),
-                    textAlign: TextAlign.right,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: SaldoTiers.textFor(tier, brightness),
+                  // Never wraps: a value too long for the column shrinks
+                  // a little instead of breaking the line.
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.topRight,
+                    child: Text(
+                      formatCurrency(day.saldo),
+                      maxLines: 1,
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: SaldoTiers.textFor(tier, brightness),
+                      ),
                     ),
                   ),
                 ),
@@ -497,21 +506,25 @@ class _TypeValueRow extends StatelessWidget {
                 child: Icon(type.icon, size: 12, color: Colors.white),
               ),
             const SizedBox(width: 6),
+            // Shrinks instead of cutting with "…" when a value is too long.
             Expanded(
-              child: Text(
-                formatCurrency(value),
-                textAlign: TextAlign.right,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontStyle: outlined ? FontStyle.italic : null,
-                  fontWeight: hasValue ? FontWeight.w600 : null,
-                  color: outlined
-                      ? Theme.of(context).colorScheme.onSurfaceVariant
-                      : (hasValue
-                            ? null
-                            : Theme.of(context).colorScheme.onSurfaceVariant),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerRight,
+                child: Text(
+                  formatCurrency(value),
+                  textAlign: TextAlign.right,
+                  maxLines: 1,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontStyle: outlined ? FontStyle.italic : null,
+                    fontWeight: hasValue ? FontWeight.w600 : null,
+                    color: outlined
+                        ? Theme.of(context).colorScheme.onSurfaceVariant
+                        : (hasValue
+                              ? null
+                              : Theme.of(context).colorScheme.onSurfaceVariant),
+                  ),
                 ),
               ),
             ),
