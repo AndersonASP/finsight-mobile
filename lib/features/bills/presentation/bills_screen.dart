@@ -10,7 +10,7 @@ import '../data/bill.dart';
 
 final _dueFormat = DateFormat("EEE, d 'de' MMM", 'pt_BR');
 
-/// "Contas a pagar": fixed saídas and card invoices with a "pago" check.
+/// "A pagar": fixed saídas and card invoices with a "pago" check.
 ///
 /// The check is only a visual control to avoid paying something twice — the
 /// saldo already counts every bill on its due date, checked or not.
@@ -27,7 +27,7 @@ class BillsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Contas a pagar'),
+        title: const Text('A pagar'),
         actions: [
           if (kDebugMode)
             IconButton(

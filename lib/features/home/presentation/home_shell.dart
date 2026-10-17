@@ -25,7 +25,6 @@ import '../../ledger/presentation/saldos_screen.dart';
 import '../../offline/sync_service.dart';
 import '../../quick_entry/application/quick_entry_providers.dart';
 import '../../quick_entry/presentation/apple_pay_screen.dart';
-import '../../reports/presentation/reports_list_screen.dart';
 import '../../scenarios/application/scenarios_providers.dart';
 import '../../scenarios/presentation/scenarios_list_screen.dart';
 import '../../totals/application/totals_providers.dart';
@@ -93,12 +92,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     );
   }
 
-  static const _tabs = [
-    SaldosScreen(),
-    TotaisScreen(),
-    TagsScreen(),
-    _MenuTab(),
-  ];
+  static const _tabs = [SaldosScreen(), TotaisScreen(), _MenuTab()];
 
   @override
   Widget build(BuildContext context) {
@@ -118,7 +112,6 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         items: const [
           LiquidGlassNavItem(icon: Icons.table_rows_rounded, label: 'Saldos'),
           LiquidGlassNavItem(icon: Icons.calculate_rounded, label: 'Totais'),
-          LiquidGlassNavItem(icon: Icons.sell_rounded, label: 'Tags'),
           LiquidGlassNavItem(icon: Icons.menu_rounded, label: 'Menu'),
         ],
         actionIcon: Icons.add_rounded,
@@ -138,68 +131,130 @@ class _MenuTab extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Menu'), leading: const TodayButton()),
       body: ListView(
+        padding: const EdgeInsets.only(bottom: 120),
         children: [
-          ListTile(
-            leading: const Icon(Icons.event_available_outlined),
-            title: const Text('Contas a pagar'),
+          const _MenuSection('Dia a dia'),
+          _MenuItem(
+            icon: Icons.event_available_outlined,
+            title: 'A pagar',
             trailing: overdue > 0
                 ? Badge(
                     label: Text('$overdue'),
                     backgroundColor: Theme.of(context).colorScheme.error,
                   )
                 : null,
-            onTap: () => Navigator.of(
-              context,
-            ).push(MaterialPageRoute(builder: (_) => const BillsScreen())),
+            builder: (_) => const BillsScreen(),
           ),
-          ListTile(
-            leading: const Icon(Icons.contactless_outlined),
-            title: const Text('Apple Pay e Atalhos'),
-            onTap: () => Navigator.of(
-              context,
-            ).push(MaterialPageRoute(builder: (_) => const ApplePayScreen())),
+          _MenuItem(
+            icon: Icons.credit_card_outlined,
+            title: 'Cartões e faturas',
+            builder: (_) => const CardsScreen(),
           ),
-          ListTile(
-            leading: const Icon(Icons.account_balance_outlined),
-            title: const Text('Contas'),
-            onTap: () => Navigator.of(
-              context,
-            ).push(MaterialPageRoute(builder: (_) => const AccountsScreen())),
+          const _MenuSection('Cadastros'),
+          _MenuItem(
+            icon: Icons.account_balance_outlined,
+            title: 'Contas bancárias',
+            builder: (_) => const AccountsScreen(),
           ),
-          ListTile(
-            leading: const Icon(Icons.pie_chart_outline),
-            title: const Text('Previsão de diário'),
-            onTap: () => Navigator.of(
-              context,
-            ).push(MaterialPageRoute(builder: (_) => const BudgetScreen())),
+          _MenuItem(
+            icon: Icons.sell_outlined,
+            title: 'Tags',
+            builder: (_) => const TagsScreen(),
           ),
-          ListTile(
-            leading: const Icon(Icons.credit_card_outlined),
-            title: const Text('Cartões e faturas'),
-            onTap: () => Navigator.of(
-              context,
-            ).push(MaterialPageRoute(builder: (_) => const CardsScreen())),
+          _MenuItem(
+            icon: Icons.pie_chart_outline,
+            title: 'Previsão de diário',
+            builder: (_) => const BudgetScreen(),
           ),
-          ListTile(
-            leading: const Icon(Icons.bar_chart_outlined),
-            title: const Text('Relatórios'),
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const ReportsListScreen()),
-            ),
+          _MenuItem(
+            icon: Icons.warning_amber_outlined,
+            title: 'Dívidas',
+            builder: (_) => const DebtsScreen(),
           ),
-          ListTile(
-            leading: const Icon(Icons.warning_amber_outlined),
-            title: const Text('Dívidas'),
-            onTap: () => Navigator.of(
-              context,
-            ).push(MaterialPageRoute(builder: (_) => const DebtsScreen())),
+          const _MenuSection('Ferramentas'),
+          _MenuItem(
+            icon: Icons.science_outlined,
+            title: 'Simulações',
+            builder: (_) => const ScenariosListScreen(),
           ),
+          _MenuItem(
+            icon: Icons.contactless_outlined,
+            title: 'Apple Pay e Atalhos',
+            builder: (_) => const ApplePayScreen(),
+          ),
+          const Divider(height: 32),
+          _MenuItem(
+            icon: Icons.settings_outlined,
+            title: 'Ajustes',
+            builder: (_) => const _SettingsScreen(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MenuSection extends StatelessWidget {
+  const _MenuSection(this.title);
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
+      child: Text(
+        title,
+        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+      ),
+    );
+  }
+}
+
+class _MenuItem extends StatelessWidget {
+  const _MenuItem({
+    required this.icon,
+    required this.title,
+    required this.builder,
+    this.trailing,
+  });
+
+  final IconData icon;
+  final String title;
+  final WidgetBuilder builder;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Icon(icon),
+      title: Text(title),
+      trailing: trailing ?? const Icon(Icons.chevron_right),
+      onTap: () =>
+          Navigator.of(context).push(MaterialPageRoute(builder: builder)),
+    );
+  }
+}
+
+/// Rarely-used and destructive actions, kept off the main Menu list.
+class _SettingsScreen extends ConsumerWidget {
+  const _SettingsScreen();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Ajustes')),
+      body: ListView(
+        children: [
           ListTile(
-            leading: const Icon(Icons.science_outlined),
-            title: const Text('Simulações'),
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const ScenariosListScreen()),
-            ),
+            leading: const Icon(Icons.logout),
+            title: const Text('Sair'),
+            onTap: () {
+              Navigator.of(context).popUntil((route) => route.isFirst);
+              ref.read(authControllerProvider.notifier).signOut();
+            },
           ),
           const Divider(),
           ListTile(
@@ -211,12 +266,8 @@ class _MenuTab extends ConsumerWidget {
               'Reiniciar dados',
               style: TextStyle(color: Theme.of(context).colorScheme.error),
             ),
+            subtitle: const Text('Apaga tudo e começa do zero'),
             onTap: () => _confirmReset(context, ref),
-          ),
-          ListTile(
-            leading: const Icon(Icons.logout),
-            title: const Text('Sair'),
-            onTap: () => ref.read(authControllerProvider.notifier).signOut(),
           ),
         ],
       ),
@@ -271,6 +322,7 @@ class _MenuTab extends ConsumerWidget {
     ref.invalidate(budgetItemsListProvider);
     ref.invalidate(budgetSummaryProvider);
     ref.invalidate(scenariosListProvider);
+    ref.invalidate(billsProvider);
 
     if (context.mounted) {
       ScaffoldMessenger.of(

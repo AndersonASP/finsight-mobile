@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../reports/presentation/category_breakdown_report_screen.dart';
 import '../../../core/format/money.dart';
 import '../../../core/providers/selected_month_provider.dart';
 import '../../../core/theme/app_colors.dart';
@@ -16,7 +17,22 @@ class TotaisScreen extends ConsumerWidget {
     final totalsAsync = ref.watch(monthlyTotalsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Totais'), leading: const TodayButton()),
+      appBar: AppBar(
+        title: const Text('Totais'),
+        leading: const TodayButton(),
+        actions: [
+          // The one report used often enough to keep a door to it.
+          IconButton(
+            tooltip: 'Gastos por tag',
+            icon: const Icon(Icons.donut_large_outlined),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const CategoryBreakdownReportScreen(),
+              ),
+            ),
+          ),
+        ],
+      ),
       body: Column(
         children: [
           Padding(
