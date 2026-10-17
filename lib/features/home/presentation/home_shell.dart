@@ -23,6 +23,8 @@ import '../../debts/presentation/debts_screen.dart';
 import '../../ledger/application/ledger_providers.dart';
 import '../../ledger/presentation/saldos_screen.dart';
 import '../../offline/sync_service.dart';
+import '../../quick_entry/application/quick_entry_providers.dart';
+import '../../quick_entry/presentation/apple_pay_screen.dart';
 import '../../reports/presentation/reports_list_screen.dart';
 import '../../scenarios/application/scenarios_providers.dart';
 import '../../scenarios/presentation/scenarios_list_screen.dart';
@@ -48,6 +50,28 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     // device's copy of the Saldos tab fresh (see SyncService).
     ref.read(syncServiceProvider).start();
     unawaited(_initReminders());
+    // Keeps the iOS side (Apple Pay automation) logged in as this session.
+    unawaited(ref.read(tokenStorageProvider).mirrorToNative());
+    // An automation that couldn't log a purchase leaves it for the app to
+    // open pre-filled — on launch, or whenever the app comes back.
+    _lifecycle = AppLifecycleListener(onResume: _openPendingQuickEntry);
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _openPendingQuickEntry(),
+    );
+  }
+
+  AppLifecycleListener? _lifecycle;
+
+  @override
+  void dispose() {
+    _lifecycle?.dispose();
+    super.dispose();
+  }
+
+  void _openPendingQuickEntry() {
+    final navigatorContext = rootNavigatorKey.currentContext;
+    if (navigatorContext == null) return;
+    unawaited(openPendingQuickEntry(navigatorContext, ref));
   }
 
   /// Hooks up bill reminders: a tapped one opens "Contas a pagar" on its
@@ -127,6 +151,13 @@ class _MenuTab extends ConsumerWidget {
             onTap: () => Navigator.of(
               context,
             ).push(MaterialPageRoute(builder: (_) => const BillsScreen())),
+          ),
+          ListTile(
+            leading: const Icon(Icons.contactless_outlined),
+            title: const Text('Apple Pay e Atalhos'),
+            onTap: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const ApplePayScreen())),
           ),
           ListTile(
             leading: const Icon(Icons.account_balance_outlined),

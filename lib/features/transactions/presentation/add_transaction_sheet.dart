@@ -41,12 +41,21 @@ Future<void> showAddTransactionForm(
   BuildContext context, {
   required FinTransactionType type,
   DateTime? initialDate,
+  String? initialAmount,
+  String? initialDescription,
+  String? initialAccountId,
 }) {
   return showModalBottomSheet(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    builder: (_) => _TransactionFormSheet(type: type, initialDate: initialDate),
+    builder: (_) => _TransactionFormSheet(
+      type: type,
+      initialDate: initialDate,
+      initialAmount: initialAmount,
+      initialDescription: initialDescription,
+      initialAccountId: initialAccountId,
+    ),
   );
 }
 
@@ -146,11 +155,20 @@ class _TransactionFormSheet extends ConsumerStatefulWidget {
   const _TransactionFormSheet({
     required this.type,
     this.initialDate,
+    this.initialAmount,
+    this.initialDescription,
+    this.initialAccountId,
     this.existing,
   });
 
   final FinTransactionType type;
   final DateTime? initialDate;
+
+  /// Pre-fill for a new lançamento (e.g. from an Apple Pay automation):
+  /// API-style amount ("26.00"), description and account.
+  final String? initialAmount;
+  final String? initialDescription;
+  final String? initialAccountId;
 
   /// When set, the form edits this transaction instead of creating a new
   /// one — every field below pre-fills from it.
@@ -165,16 +183,19 @@ class _TransactionFormSheetState extends ConsumerState<_TransactionFormSheet> {
   late final _amountController = TextEditingController(
     text: widget.existing != null
         ? BrlAmountField.fromApiAmount(widget.existing!.amount)
+        : widget.initialAmount != null
+        ? BrlAmountField.fromApiAmount(widget.initialAmount!)
         : '',
   );
   late final _descriptionController = TextEditingController(
-    text: widget.existing?.description ?? '',
+    text: widget.existing?.description ?? widget.initialDescription ?? '',
   );
   late FinTransactionType _type = widget.existing?.type ?? widget.type;
   // null means "use the smart default" (see _smartDefaultAccountId) — once
   // the user explicitly picks an account (or we're editing, which always
   // has one), this pins it instead of following the default.
-  late String? _accountId = widget.existing?.accountId;
+  late String? _accountId =
+      widget.existing?.accountId ?? widget.initialAccountId;
   // A freshly-picked tag (full object, from the tag picker) takes priority
   // for display; until the user picks one, the existing transaction's
   // categoryId is resolved against the loaded category list in build().

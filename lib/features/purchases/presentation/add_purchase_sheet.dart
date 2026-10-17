@@ -16,27 +16,58 @@ import '../data/purchases_repository.dart';
 Future<void> showAddPurchaseSheet(
   BuildContext context, {
   DateTime? initialDate,
+  String? initialAmount,
+  String? initialDescription,
+  String? initialCardId,
+  String? initialCardName,
 }) {
   return showModalBottomSheet(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    builder: (_) => _AddPurchaseSheet(initialDate: initialDate),
+    builder: (_) => _AddPurchaseSheet(
+      initialDate: initialDate,
+      initialAmount: initialAmount,
+      initialDescription: initialDescription,
+      initialCardId: initialCardId,
+      initialCardName: initialCardName,
+    ),
   );
 }
 
 class _AddPurchaseSheet extends ConsumerStatefulWidget {
-  const _AddPurchaseSheet({this.initialDate});
+  const _AddPurchaseSheet({
+    this.initialDate,
+    this.initialAmount,
+    this.initialDescription,
+    this.initialCardId,
+    this.initialCardName,
+  });
 
   final DateTime? initialDate;
+
+  /// Pre-fill from an Apple Pay automation that couldn't log by itself
+  /// (offline, or a Wallet card not linked yet): API-style amount ("26.00"),
+  /// merchant, and the card — by id, else matched by its Wallet name.
+  final String? initialAmount;
+  final String? initialDescription;
+  final String? initialCardId;
+  final String? initialCardName;
 
   @override
   ConsumerState<_AddPurchaseSheet> createState() => _AddPurchaseSheetState();
 }
 
 class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
-  final _amountController = TextEditingController();
-  final _descriptionController = TextEditingController();
+  late final _amountController = TextEditingController(
+    text: widget.initialAmount == null
+        ? ''
+        : BrlAmountField.fromApiAmount(widget.initialAmount!),
+  );
+  late final _descriptionController = TextEditingController(
+    text: widget.initialDescription ?? '',
+  );
+  bool _initialCardResolved = false;
   int _installments = 1;
   // Mutually exclusive with installments: a subscription is always a single
   // charge per month, repeated — never itself split into parcelas.
@@ -98,6 +129,26 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
       final created = await showCreateCardSheet(context);
       if (created != null) setState(() => _card = created);
     }
+  }
+
+  /// The pre-filled card: by id, else the one whose name and the Wallet's
+  /// name contain each other ("Nubank" ↔ "Nubank Ultravioleta"), else the
+  /// only card there is.
+  FinCard? _matchInitialCard(List<FinCard> cards) {
+    if (widget.initialCardId != null) {
+      for (final card in cards) {
+        if (card.id == widget.initialCardId) return card;
+      }
+    }
+    final wallet = widget.initialCardName?.trim().toLowerCase();
+    if (wallet != null && wallet.isNotEmpty) {
+      for (final card in cards) {
+        final name = card.name.trim().toLowerCase();
+        if (wallet.contains(name) || name.contains(wallet)) return card;
+      }
+    }
+    if (widget.initialAmount != null && cards.length == 1) return cards.single;
+    return null;
   }
 
   Future<void> _pickTag() async {
@@ -244,14 +295,24 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
             cardsAsync.when(
               loading: () => const LinearProgressIndicator(),
               error: (e, _) => Text('Erro ao carregar cartões: $e'),
-              data: (cards) => FormRow(
-                leading: const CircleAvatar(
-                  backgroundColor: AppColors.cartao,
-                  child: Icon(Icons.credit_card, color: Colors.white, size: 18),
-                ),
-                title: _card?.name ?? 'escolher cartão',
-                onTap: () => _pickCard(cards),
-              ),
+              data: (cards) {
+                if (!_initialCardResolved) {
+                  _initialCardResolved = true;
+                  _card ??= _matchInitialCard(cards);
+                }
+                return FormRow(
+                  leading: const CircleAvatar(
+                    backgroundColor: AppColors.cartao,
+                    child: Icon(
+                      Icons.credit_card,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                  ),
+                  title: _card?.name ?? 'escolher cartão',
+                  onTap: () => _pickCard(cards),
+                );
+              },
             ),
             const Divider(height: 1),
             FormRow(
