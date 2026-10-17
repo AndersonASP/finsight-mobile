@@ -6,7 +6,7 @@ import '../network/network_providers.dart';
 
 /// Shared with the WidgetKit extension (ios/FinSightWidget).
 const widgetAppGroupId = 'group.dev.andalsp.finsight';
-const _iOSWidgetKinds = ['FinSightWidget', 'FinSightRedSea'];
+const _iOSWidgetKind = 'FinSightWidget';
 const _summaryKey = 'summary';
 
 final widgetSyncProvider = Provider<WidgetSync>(WidgetSync.new);
@@ -54,11 +54,8 @@ class WidgetSync {
     }
   }
 
-  Future<void> _reloadWidgets() async {
-    for (final kind in _iOSWidgetKinds) {
-      await HomeWidget.updateWidget(iOSName: kind);
-    }
-  }
+  Future<void> _reloadWidgets() =>
+      HomeWidget.updateWidget(iOSName: _iOSWidgetKind);
 
   /// On sign out: the widget must not keep showing this account's money.
   Future<void> clear() async {

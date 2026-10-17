@@ -211,13 +211,12 @@ private struct EmptyState: View {
 
 private struct SaldoBlock: View {
   let summary: Summary
-  var big: Bool = true
 
   var body: some View {
     VStack(alignment: .leading, spacing: 2) {
       Text("Saldo hoje").font(.caption2).foregroundStyle(.secondary)
       Text(Format.brl(summary.saldoHoje))
-        .font(big ? .title3 : .headline)
+        .font(.title3)
         .bold()
         .minimumScaleFactor(0.6)
         .lineLimit(1)
@@ -233,105 +232,61 @@ private struct SaldoBlock: View {
   }
 }
 
-private struct SmallView: View {
+/// The "mar vermelho" line: how much has to come in to stay green — or,
+/// when the caixa is already green, what can be saved this month.
+private struct GreenLine: View {
+  let summary: Summary
+
+  var body: some View {
+    if let red = summary.marVermelho, !Format.isZero(red.precisaEntrar) {
+      VStack(alignment: .leading, spacing: 0) {
+        Text("Para ficar no verde").font(.system(size: 10)).foregroundStyle(.secondary)
+        Text("falta \(Format.brl(red.precisaEntrar, short: true))")
+          .font(.caption)
+          .bold()
+          .foregroundStyle(saldoRed)
+          .minimumScaleFactor(0.7)
+          .lineLimit(1)
+          .privacySensitive()
+      }
+    } else if summary.marVermelho != nil {
+      VStack(alignment: .leading, spacing: 0) {
+        Text("Caixa no verde ✓").font(.caption).bold().foregroundStyle(saldoGreen)
+        if !Format.isZero(summary.podeGuardar) {
+          Text("dá p/ guardar \(Format.brl(summary.podeGuardar, short: true))")
+            .font(.system(size: 10))
+            .foregroundStyle(saldoGreen)
+            .privacySensitive()
+        }
+      }
+    }
+  }
+}
+
+private struct UpdatedAt: View {
+  let summary: Summary
+
+  var body: some View {
+    Text(Format.updatedAt(summary.asOf)).font(.system(size: 9)).foregroundStyle(.tertiary)
+  }
+}
+
+private struct LeftColumn: View {
   let summary: Summary
 
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
       SaldoBlock(summary: summary)
+      GreenLine(summary: summary)
       Spacer(minLength: 0)
-      if NSDecimalNumber(string: summary.podeGuardar).compare(NSDecimalNumber.zero) == .orderedDescending {
-        Text("Dá para guardar \(Format.brl(summary.podeGuardar, short: true))")
-          .font(.caption2)
-          .foregroundStyle(saldoGreen)
-          .privacySensitive()
-      }
-      Text(Format.updatedAt(summary.asOf)).font(.system(size: 9)).foregroundStyle(.tertiary)
+      UpdatedAt(summary: summary)
     }
     .frame(maxWidth: .infinity, alignment: .leading)
   }
 }
 
-private struct MediumView: View {
-  let summary: Summary
-
-  var body: some View {
-    HStack(alignment: .top, spacing: 12) {
-      SmallView(summary: summary)
-      VStack(alignment: .leading, spacing: 4) {
-        Text("Próximas contas").font(.caption2).foregroundStyle(.secondary)
-        if summary.proximasContas.isEmpty {
-          Text("Nada a pagar nos próximos dias 🎉").font(.caption2)
-        }
-        ForEach(Array(summary.proximasContas.enumerated()), id: \.offset) { _, bill in
-          HStack(spacing: 4) {
-            VStack(alignment: .leading, spacing: 0) {
-              Text(bill.description).font(.caption).lineLimit(1)
-              Text(Format.day(bill.dueDate)).font(.system(size: 10)).foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 2)
-            Text(Format.brl(bill.amount, short: true)).font(.caption).privacySensitive()
-          }
-        }
-        Spacer(minLength: 0)
-      }
-      .frame(maxWidth: .infinity, alignment: .leading)
-    }
-  }
-}
-
-private struct RectangularView: View {
-  let summary: Summary
-
-  var body: some View {
-    VStack(alignment: .leading, spacing: 1) {
-      Text("Saldo \(Format.brl(summary.saldoHoje, short: true))")
-        .font(.headline)
-        .privacySensitive()
-      if let next = summary.proximasContas.first {
-        Text("\(next.description) · \(Format.day(next.dueDate))")
-          .font(.caption)
-          .lineLimit(1)
-        Text(Format.brl(next.amount, short: true)).font(.caption).privacySensitive()
-      } else if let end = summary.saldoFimDoMes {
-        Text("Fim do mês \(Format.brl(end, short: true))").font(.caption).privacySensitive()
-      }
-    }
-    .frame(maxWidth: .infinity, alignment: .leading)
-  }
-}
-
-// MARK: - Mar vermelho
-
-private struct RedSeaHeadline: View {
-  let red: Summary.RedSea
-
-  var body: some View {
-    VStack(alignment: .leading, spacing: 2) {
-      if Format.isZero(red.precisaEntrar) {
-        Text("Caixa no verde").font(.headline).foregroundStyle(saldoGreen)
-        Text("nos próximos \(red.horizonteMeses) meses").font(.caption2).foregroundStyle(.secondary)
-      } else {
-        Text("Para ficar no verde").font(.caption2).foregroundStyle(.secondary)
-        Text(Format.brl(red.precisaEntrar, short: true))
-          .font(.title3)
-          .bold()
-          .minimumScaleFactor(0.6)
-          .lineLimit(1)
-          .foregroundStyle(saldoRed)
-          .privacySensitive()
-        Text("precisa entrar").font(.caption2).foregroundStyle(.secondary)
-        if let worst = red.piorDia {
-          Text("pior dia: \(Format.fullDay(worst.date))")
-            .font(.system(size: 10))
-            .foregroundStyle(.secondary)
-        }
-      }
-    }
-  }
-}
-
-private struct RedSeaMonths: View {
+/// Lowest saldo of each coming month, colored like the Saldos table.
+private struct MonthsList: View {
   let red: Summary.RedSea
   let count: Int
 
@@ -355,72 +310,108 @@ private struct RedSeaMonths: View {
   }
 }
 
-struct RedSeaWidgetView: View {
-  @Environment(\.widgetFamily) private var family
-  let entry: SummaryEntry
+private struct BillsList: View {
+  let summary: Summary
 
   var body: some View {
-    Group {
-      if let red = entry.summary?.marVermelho {
-        switch family {
-        case .systemMedium:
-          HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .leading) {
-              Text("Mar vermelho").font(.caption).bold()
-              RedSeaHeadline(red: red)
-              Spacer(minLength: 0)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            RedSeaMonths(red: red, count: 6).frame(maxWidth: .infinity)
+    VStack(alignment: .leading, spacing: 4) {
+      Text("Próximas contas").font(.caption2).foregroundStyle(.secondary)
+      if summary.proximasContas.isEmpty {
+        Text("Nada a pagar nos próximos dias 🎉").font(.caption2)
+      }
+      ForEach(Array(summary.proximasContas.enumerated()), id: \.offset) { _, bill in
+        HStack(spacing: 4) {
+          VStack(alignment: .leading, spacing: 0) {
+            Text(bill.description).font(.caption).lineLimit(1)
+            Text(Format.day(bill.dueDate)).font(.system(size: 10)).foregroundStyle(.secondary)
           }
-        case .accessoryRectangular:
-          VStack(alignment: .leading, spacing: 1) {
-            if Format.isZero(red.precisaEntrar) {
-              Text("Caixa no verde ✓").font(.headline)
-              Text("próximos \(red.horizonteMeses) meses").font(.caption)
-            } else {
-              Text("Verde: falta \(Format.brl(red.precisaEntrar, short: true))")
-                .font(.headline)
-                .privacySensitive()
-              if let first = red.primeiroMesNoVermelho {
-                Text("vermelho a partir de \(Format.month(first))").font(.caption)
-              }
-            }
-          }
-          .frame(maxWidth: .infinity, alignment: .leading)
-        case .accessoryInline:
-          if Format.isZero(red.precisaEntrar) {
-            Text("Caixa no verde ✓")
-          } else {
-            Text("Falta \(Format.brl(red.precisaEntrar, short: true)) p/ verde").privacySensitive()
-          }
-        default:
-          VStack(alignment: .leading, spacing: 4) {
-            Text("Mar vermelho").font(.caption).bold()
-            RedSeaHeadline(red: red)
-            Spacer(minLength: 0)
-          }
-          .frame(maxWidth: .infinity, alignment: .leading)
+          Spacer(minLength: 2)
+          Text(Format.brl(bill.amount, short: true)).font(.caption).privacySensitive()
         }
-      } else {
-        EmptyState()
       }
     }
-    .containerBackground(for: .widget) { Color.clear }
   }
 }
 
-struct RedSeaWidget: Widget {
-  // Must match `_iOSRedSeaKind` in widget_sync.dart.
-  let kind = "FinSightRedSea"
+private struct SmallView: View {
+  let summary: Summary
 
-  var body: some WidgetConfiguration {
-    StaticConfiguration(kind: kind, provider: SummaryProvider()) { entry in
-      RedSeaWidgetView(entry: entry)
+  var body: some View {
+    LeftColumn(summary: summary)
+  }
+}
+
+/// Right side: the coming months while there's a "mar vermelho" to watch;
+/// once everything is green, the next bills instead.
+private struct MediumView: View {
+  let summary: Summary
+
+  var body: some View {
+    HStack(alignment: .top, spacing: 12) {
+      LeftColumn(summary: summary)
+      Group {
+        if let red = summary.marVermelho, !Format.isZero(red.precisaEntrar) {
+          MonthsList(red: red, count: 4)
+        } else {
+          BillsList(summary: summary)
+        }
+      }
+      .frame(maxWidth: .infinity, alignment: .leading)
     }
-    .configurationDisplayName("Mar vermelho")
-    .description("Quanto dinheiro novo precisa entrar para o saldo ficar no verde nos próximos meses.")
-    .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryInline])
+  }
+}
+
+private struct LargeView: View {
+  let summary: Summary
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 10) {
+      HStack(alignment: .top, spacing: 12) {
+        SaldoBlock(summary: summary).frame(maxWidth: .infinity, alignment: .leading)
+        GreenLine(summary: summary).frame(maxWidth: .infinity, alignment: .leading)
+      }
+      if let red = summary.marVermelho {
+        if let worst = red.piorDia, !Format.isZero(red.precisaEntrar) {
+          Text("Pior dia: \(Format.fullDay(worst.date)) · \(Format.brl(worst.value, short: true))")
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+            .privacySensitive()
+        }
+        MonthsList(red: red, count: 6)
+      }
+      Divider()
+      BillsList(summary: summary)
+      Spacer(minLength: 0)
+      UpdatedAt(summary: summary)
+    }
+  }
+}
+
+private struct RectangularView: View {
+  let summary: Summary
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 1) {
+      Text("Saldo \(Format.brl(summary.saldoHoje, short: true))")
+        .font(.headline)
+        .privacySensitive()
+      if let red = summary.marVermelho, !Format.isZero(red.precisaEntrar) {
+        Text("Verde: falta \(Format.brl(red.precisaEntrar, short: true))")
+          .font(.caption)
+          .privacySensitive()
+        if let first = red.primeiroMesNoVermelho {
+          Text("vermelho desde \(Format.month(first))").font(.caption2)
+        }
+      } else if let next = summary.proximasContas.first {
+        Text("\(next.description) · \(Format.day(next.dueDate))")
+          .font(.caption)
+          .lineLimit(1)
+        Text(Format.brl(next.amount, short: true)).font(.caption).privacySensitive()
+      } else if let end = summary.saldoFimDoMes {
+        Text("Fim do mês \(Format.brl(end, short: true))").font(.caption).privacySensitive()
+      }
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
   }
 }
 
@@ -433,9 +424,15 @@ struct FinSightWidgetView: View {
       if let summary = entry.summary {
         switch family {
         case .systemMedium: MediumView(summary: summary)
+        case .systemLarge: LargeView(summary: summary)
         case .accessoryRectangular: RectangularView(summary: summary)
         case .accessoryInline:
-          Text("Saldo \(Format.brl(summary.saldoHoje, short: true))").privacySensitive()
+          if let red = summary.marVermelho, !Format.isZero(red.precisaEntrar) {
+            Text("Saldo \(Format.brl(summary.saldoHoje, short: true)) · falta \(Format.brl(red.precisaEntrar, short: true))")
+              .privacySensitive()
+          } else {
+            Text("Saldo \(Format.brl(summary.saldoHoje, short: true))").privacySensitive()
+          }
         default: SmallView(summary: summary)
         }
       } else {
@@ -454,9 +451,9 @@ struct FinSightWidget: Widget {
     StaticConfiguration(kind: kind, provider: SummaryProvider()) { entry in
       FinSightWidgetView(entry: entry)
     }
-    .configurationDisplayName("Saldo e contas")
-    .description("Seu saldo, como o mês termina e as próximas contas.")
-    .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryInline])
+    .configurationDisplayName("FinSight")
+    .description("Saldo, quanto falta para ficar no verde nos próximos meses e as próximas contas.")
+    .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryRectangular, .accessoryInline])
   }
 }
 
@@ -464,6 +461,5 @@ struct FinSightWidget: Widget {
 struct FinSightWidgetBundle: WidgetBundle {
   var body: some Widget {
     FinSightWidget()
-    RedSeaWidget()
   }
 }
