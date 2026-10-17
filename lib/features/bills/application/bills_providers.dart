@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/home_widget/widget_sync.dart';
 import '../../../core/notifications/reminder_notifications.dart';
 import '../../../core/notifications/reminder_planner.dart';
 import '../../../core/offline/connectivity.dart';
@@ -126,6 +127,7 @@ class BillsController {
     _pending.set(bill.kind, bill.id, paid);
     await syncPending();
     await rescheduleReminders();
+    await _ref.read(widgetSyncProvider).refresh(force: true);
   }
 
   /// Sends queued paid checks. Stops at the first connection failure (kept

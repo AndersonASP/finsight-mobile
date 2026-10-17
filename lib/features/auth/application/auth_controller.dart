@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/network_providers.dart';
+import '../../../core/home_widget/widget_sync.dart';
 import '../../../core/notifications/reminder_notifications.dart';
 import '../../../core/offline/offline_store.dart';
 import '../../offline/pending_changes.dart';
@@ -38,6 +39,7 @@ class AuthController extends AsyncNotifier<AuthStatus> {
     try {
       await ref.read(reminderNotificationsProvider).cancelAll();
     } catch (_) {}
+    await ref.read(widgetSyncProvider).clear();
     // The next account to log in must never see — or sync — this one's data.
     await ref.read(offlineStoreProvider).clear();
     ref.invalidate(pendingChangesProvider);

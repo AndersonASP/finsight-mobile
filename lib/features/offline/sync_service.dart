@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
+import '../../core/home_widget/widget_sync.dart';
 import '../../core/network/network_providers.dart';
 import '../../core/offline/connectivity.dart';
 import '../accounts/data/accounts_repository.dart';
@@ -74,6 +75,7 @@ class SyncService {
     final bills = _ref.read(billsControllerProvider);
     await bills.syncPending();
     await bills.rescheduleReminders();
+    await _ref.read(widgetSyncProvider).refresh(force: true);
   }
 
   void dispose() {
@@ -224,6 +226,7 @@ class SyncService {
         if (changedDate != null) {
           unawaited(refreshCache(changedDate: changedDate));
         }
+        unawaited(_ref.read(widgetSyncProvider).refresh(force: true));
         return false;
       } catch (error) {
         if (!isOfflineError(error)) rethrow;
