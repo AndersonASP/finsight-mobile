@@ -128,7 +128,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
           LiquidGlassNavItem(icon: Icons.table_rows_rounded, label: 'Saldos'),
           LiquidGlassNavItem(icon: Icons.calculate_rounded, label: 'Totais'),
           LiquidGlassNavItem(
-            icon: Icons.account_balance_wallet_rounded,
+            icon: Icons.attach_money_rounded,
             label: 'Patrimônio',
           ),
           LiquidGlassNavItem(icon: Icons.menu_rounded, label: 'Menu'),
