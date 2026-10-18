@@ -24,16 +24,27 @@ class CardInvoicesScreen extends ConsumerWidget {
           if (invoices.isEmpty) {
             return const Center(child: Text('Nenhuma fatura ainda.'));
           }
-          return ListView.separated(
-            itemCount: invoices.length,
-            separatorBuilder: (_, _) => const Divider(height: 1),
+          // Newest first (as the API sends them), one section per year.
+          final rows = <Object>[];
+          for (final invoice in invoices) {
+            if (rows.isEmpty ||
+                (rows.last is Invoice &&
+                    (rows.last as Invoice).periodYear != invoice.periodYear)) {
+              rows.add(invoice.periodYear);
+            }
+            rows.add(invoice);
+          }
+          return ListView.builder(
+            itemCount: rows.length,
             itemBuilder: (context, index) {
-              final invoice = invoices[index];
+              final row = rows[index];
+              if (row is int) return _YearHeader(year: row);
+              final invoice = row as Invoice;
               return ListTile(
-                title: Text(
-                  '${invoice.periodMonth.toString().padLeft(2, '0')}/${invoice.periodYear}',
+                title: Text(invoice.monthName),
+                subtitle: Text(
+                  '${invoice.status.label} · vence ${invoice.dueDate.day.toString().padLeft(2, '0')}/${invoice.dueDate.month.toString().padLeft(2, '0')}',
                 ),
-                subtitle: Text(invoice.status.label),
                 trailing: Text(
                   formatCurrency(invoice.total),
                   style: Theme.of(context).textTheme.titleMedium,
@@ -47,6 +58,29 @@ class CardInvoicesScreen extends ConsumerWidget {
             },
           );
         },
+      ),
+    );
+  }
+}
+
+class _YearHeader extends StatelessWidget {
+  const _YearHeader({required this.year});
+
+  final int year;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      color: theme.colorScheme.surfaceContainerHighest,
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+      child: Text(
+        '$year',
+        style: theme.textTheme.titleSmall?.copyWith(
+          fontWeight: FontWeight.bold,
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
       ),
     );
   }

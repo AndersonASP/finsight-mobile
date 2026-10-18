@@ -1,3 +1,5 @@
+import 'package:intl/intl.dart';
+
 enum InvoiceStatus { open, closed }
 
 extension InvoiceStatusX on InvoiceStatus {
@@ -33,6 +35,12 @@ class Invoice {
   final DateTime dueDate;
   final InvoiceStatus status;
   final String total;
+
+  /// "Dezembro" — the reference month's name (`periodMonth`).
+  String get monthName {
+    final name = DateFormat.MMMM('pt_BR').format(DateTime(2000, periodMonth));
+    return name[0].toUpperCase() + name.substring(1);
+  }
 
   factory Invoice.fromJson(Map<String, dynamic> json) {
     return Invoice(

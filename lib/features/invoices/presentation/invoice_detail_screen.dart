@@ -31,7 +31,7 @@ class InvoiceDetailScreen extends ConsumerWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          '${invoice.periodMonth.toString().padLeft(2, '0')}/${invoice.periodYear}',
+                          '${invoice.monthName} de ${invoice.periodYear}',
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
                         Text(invoice.status.label),
