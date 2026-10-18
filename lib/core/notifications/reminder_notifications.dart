@@ -25,6 +25,14 @@ abstract class ReminderNotifications {
 
   /// Due date of the reminder that launched the app, if any.
   Future<DateTime?> launchDueDate();
+
+  /// Shows a notification right away (e.g. "Quero comprar": agora cabe).
+  /// Does nothing without permission.
+  Future<void> showNow({
+    required int id,
+    required String title,
+    required String body,
+  });
 }
 
 final reminderNotificationsProvider = Provider<ReminderNotifications>((ref) {
@@ -100,7 +108,8 @@ class LocalReminderNotifications implements ReminderNotifications {
 
   @override
   Future<void> replaceAll(List<PlannedReminder> reminders) async {
-    await _plugin.cancelAll();
+    // Pending only: an alert already delivered (e.g. "agora cabe") stays.
+    await _plugin.cancelAllPendingNotifications();
     for (final reminder in reminders) {
       await scheduleOne(reminder);
     }
@@ -129,6 +138,27 @@ class LocalReminderNotifications implements ReminderNotifications {
 
   @override
   Future<void> cancelAll() => _plugin.cancelAll();
+
+  static const _wishlistDetails = NotificationDetails(
+    iOS: DarwinNotificationDetails(threadIdentifier: 'wishlist'),
+    android: AndroidNotificationDetails(
+      'wishlist',
+      'Quero comprar',
+      channelDescription: 'Avisa quando uma compra desejada passa a caber',
+    ),
+  );
+
+  @override
+  Future<void> showNow({
+    required int id,
+    required String title,
+    required String body,
+  }) => _plugin.show(
+    id: id,
+    title: title,
+    body: body,
+    notificationDetails: _wishlistDetails,
+  );
 
   @override
   Future<DateTime?> launchDueDate() async {

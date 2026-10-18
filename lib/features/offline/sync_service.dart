@@ -12,6 +12,7 @@ import '../categories/data/categories_repository.dart';
 import '../reports/data/reports_repository.dart';
 import '../transactions/data/fin_transaction.dart';
 import '../transactions/data/transactions_repository.dart';
+import '../what_if/application/what_if_providers.dart';
 import 'pending_changes.dart';
 
 /// Messages about queued changes the server refused when they were synced —
@@ -76,6 +77,10 @@ class SyncService {
     await bills.syncPending();
     await bills.rescheduleReminders();
     await _ref.read(widgetSyncProvider).refresh(force: true);
+    // "Quero comprar": notify when an item starts to fit.
+    if (!_connectivity.isOffline) {
+      await _ref.read(wishlistWatcherProvider).check();
+    }
   }
 
   void dispose() {

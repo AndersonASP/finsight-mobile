@@ -36,6 +36,12 @@ class AppTheme {
       // A hair darker than `surface` so cards and dialogs stand out from the
       // page behind them without resorting to shadows.
       scaffoldBackgroundColor: const Color(0xFFF5F6F8),
+      // No Material 3 tint when content scrolls under the app bar: the top
+      // keeps the same color while scrolling.
+      appBarTheme: const AppBarTheme(
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+      ),
       cardTheme: CardThemeData(
         color: colorScheme.surface,
         elevation: 0,
@@ -77,6 +83,12 @@ class AppTheme {
       // Darker than `surface`, never pure black, so elevated cards read as
       // lighter rather than as glowing panels on a flat void.
       scaffoldBackgroundColor: const Color(0xFF0B1220),
+      // No Material 3 tint when content scrolls under the app bar: the top
+      // keeps the same color while scrolling.
+      appBarTheme: const AppBarTheme(
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+      ),
       cardTheme: CardThemeData(
         color: colorScheme.surfaceContainer,
         elevation: 0,

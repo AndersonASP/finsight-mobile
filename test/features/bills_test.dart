@@ -54,6 +54,13 @@ class _FakeNotifications implements ReminderNotifications {
 
   @override
   Future<DateTime?> launchDueDate() async => null;
+
+  @override
+  Future<void> showNow({
+    required int id,
+    required String title,
+    required String body,
+  }) async {}
 }
 
 String _iso(DateTime d) =>

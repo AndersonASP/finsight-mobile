@@ -28,6 +28,8 @@ import '../../quick_entry/application/quick_entry_providers.dart';
 import '../../quick_entry/presentation/apple_pay_screen.dart';
 import '../../scenarios/application/scenarios_providers.dart';
 import '../../scenarios/presentation/scenarios_list_screen.dart';
+import '../../what_if/presentation/what_if_screen.dart';
+import '../../what_if/presentation/wishlist_screen.dart';
 import '../../totals/application/totals_providers.dart';
 import '../../totals/presentation/totais_screen.dart';
 import '../../transactions/presentation/add_transaction_sheet.dart';
@@ -190,8 +192,18 @@ class _MenuTab extends ConsumerWidget {
           ),
           const _MenuSection('Ferramentas'),
           _MenuItem(
+            icon: Icons.help_outline,
+            title: 'E se?',
+            builder: (_) => const WhatIfScreen(),
+          ),
+          _MenuItem(
+            icon: Icons.bookmark_border,
+            title: 'Quero comprar',
+            builder: (_) => const WishlistScreen(),
+          ),
+          _MenuItem(
             icon: Icons.science_outlined,
-            title: 'Simulações',
+            title: 'Cenários (avançado)',
             builder: (_) => const ScenariosListScreen(),
           ),
           _MenuItem(
