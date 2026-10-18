@@ -3,25 +3,39 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../application/scenarios_providers.dart';
 import '../data/scenario.dart';
 import '../data/scenarios_repository.dart';
+import 'delete_scenario.dart';
 import 'scenario_detail_screen.dart';
 
-class ScenariosListScreen extends ConsumerWidget {
+class ScenariosListScreen extends ConsumerStatefulWidget {
   const ScenariosListScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ScenariosListScreen> createState() =>
+      _ScenariosListScreenState();
+}
+
+class _ScenariosListScreenState extends ConsumerState<ScenariosListScreen> {
+  /// Swiped-away simulações, hidden right away: a dismissed Dismissible must
+  /// leave the tree immediately, before the refetched list arrives.
+  final _deletedIds = <String>{};
+
+  @override
+  Widget build(BuildContext context) {
     final scenariosAsync = ref.watch(scenariosListProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Simulações')),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _showCreateSheet(context, ref),
+        onPressed: () => _showCreateSheet(context),
         child: const Icon(Icons.add),
       ),
       body: scenariosAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(child: Text('Erro: $error')),
-        data: (scenarios) {
+        data: (allScenarios) {
+          final scenarios = allScenarios
+              .where((s) => !_deletedIds.contains(s.id))
+              .toList();
           if (scenarios.isEmpty) {
             return const Center(
               child: Text(
@@ -35,18 +49,41 @@ class ScenariosListScreen extends ConsumerWidget {
             separatorBuilder: (_, _) => const Divider(height: 1),
             itemBuilder: (context, index) {
               final scenario = scenarios[index];
-              return ListTile(
-                leading: Icon(switch (scenario.status) {
-                  ScenarioStatus.draft => Icons.science_outlined,
-                  ScenarioStatus.confirmed => Icons.check_circle_outline,
-                  ScenarioStatus.discarded => Icons.delete_outline,
-                }),
-                title: Text(scenario.name),
-                subtitle: Text(scenario.status.label),
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        ScenarioDetailScreen(scenarioId: scenario.id),
+              // Swipe left to delete; the dialog decides (the row only goes
+              // away once the server has removed it).
+              return Dismissible(
+                key: ValueKey(scenario.id),
+                direction: DismissDirection.endToStart,
+                background: Container(
+                  color: Theme.of(context).colorScheme.error,
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Icon(
+                    Icons.delete_outline,
+                    color: Theme.of(context).colorScheme.onError,
+                  ),
+                ),
+                confirmDismiss: (_) => confirmAndDeleteScenario(
+                  context,
+                  ref,
+                  scenarioId: scenario.id,
+                  name: scenario.name,
+                ),
+                onDismissed: (_) =>
+                    setState(() => _deletedIds.add(scenario.id)),
+                child: ListTile(
+                  leading: Icon(switch (scenario.status) {
+                    ScenarioStatus.draft => Icons.science_outlined,
+                    ScenarioStatus.confirmed => Icons.check_circle_outline,
+                    ScenarioStatus.discarded => Icons.delete_outline,
+                  }),
+                  title: Text(scenario.name),
+                  subtitle: Text(scenario.status.label),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          ScenarioDetailScreen(scenarioId: scenario.id),
+                    ),
                   ),
                 ),
               );
@@ -57,7 +94,7 @@ class ScenariosListScreen extends ConsumerWidget {
     );
   }
 
-  void _showCreateSheet(BuildContext context, WidgetRef ref) {
+  void _showCreateSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,

@@ -111,6 +111,13 @@ class ScenariosRepository {
   Future<void> discard(String scenarioId) =>
       _dio.delete('/scenarios/$scenarioId');
 
+  /// Removes the simulação for good (any status), unlike [discard] which
+  /// keeps a draft around marked "descartada".
+  Future<void> delete(String scenarioId) => _dio.delete(
+    '/scenarios/$scenarioId',
+    queryParameters: {'permanent': 'true'},
+  );
+
   Future<void> confirm(String scenarioId) =>
       _dio.post('/scenarios/$scenarioId/confirm');
 

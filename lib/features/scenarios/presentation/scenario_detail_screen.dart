@@ -10,6 +10,7 @@ import '../data/scenario.dart';
 import '../data/scenarios_repository.dart';
 import 'add_scenario_purchase_sheet.dart';
 import 'add_scenario_transaction_sheet.dart';
+import 'delete_scenario.dart';
 import 'scenario_day_detail_screen.dart';
 
 /// Shows a "o que simular?" picker (the same five types as the Saldos
@@ -116,7 +117,25 @@ class ScenarioDetailScreen extends ConsumerWidget {
     final daysAsync = ref.watch(scenarioDailyBalanceProvider(scenarioId));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Cenário')),
+      appBar: AppBar(
+        title: const Text('Cenário'),
+        actions: [
+          if (detailAsync.value case final detail?)
+            IconButton(
+              tooltip: 'Excluir simulação',
+              icon: const Icon(Icons.delete_outline),
+              onPressed: () async {
+                final deleted = await confirmAndDeleteScenario(
+                  context,
+                  ref,
+                  scenarioId: scenarioId,
+                  name: detail['name'] as String? ?? 'Cenário',
+                );
+                if (deleted && context.mounted) Navigator.of(context).pop();
+              },
+            ),
+        ],
+      ),
       floatingActionButton: detailAsync.maybeWhen(
         data: (detail) => (detail['status'] as String) == 'draft'
             ? FloatingActionButton(
