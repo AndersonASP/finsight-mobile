@@ -6,6 +6,7 @@ import '../../../core/widgets/grouped_bar_chart.dart';
 import '../../../core/widgets/today_button.dart';
 import '../../accounts/presentation/accounts_screen.dart';
 import '../../cards/presentation/cards_screen.dart';
+import '../application/wealth_insight.dart';
 import '../application/wealth_providers.dart';
 import '../data/wealth.dart';
 import 'asset_sheets.dart';
@@ -196,6 +197,8 @@ class _WealthBody extends ConsumerWidget {
   }
 }
 
+/// The headline: "ficando mais rico ou mais pobre" (financial net worth, bens
+/// left out), what to do about it, then the totals as supporting numbers.
 class _Header extends StatelessWidget {
   const _Header({required this.summary});
 
@@ -204,39 +207,124 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final netWorth = double.tryParse(summary.netWorth) ?? 0;
-    final previous = summary.previousNetWorth == null
-        ? null
-        : double.tryParse(summary.previousNetWorth!);
-    final delta = previous == null ? null : netWorth - previous;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Patrimônio líquido', style: theme.textTheme.labelLarge),
-          Text(
-            formatCurrency(summary.netWorth),
-            style: theme.textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: netWorth < 0 ? AppColors.deficit : null,
-            ),
-          ),
-          if (delta != null)
-            Text(
-              '${delta >= 0 ? '+' : '−'}${formatCurrency(delta.abs().toStringAsFixed(2))} '
-              'vs. mês anterior',
-              style: TextStyle(
-                color: delta >= 0 ? AppColors.surplus : AppColors.deficit,
-              ),
-            ),
-          const SizedBox(height: 4),
-          Text(
-            'Financeiro (sem bens): ${formatCurrency(summary.financialNetWorth)}',
-            style: theme.textTheme.bodySmall,
-          ),
-        ],
+    final insight = buildWealthInsight(summary);
+    final (color, icon) = switch (insight.tone) {
+      InsightTone.bom => (AppColors.surplus, Icons.trending_up),
+      InsightTone.ruim => (AppColors.deficit, Icons.trending_down),
+      InsightTone.atencao => (Colors.amber.shade800, Icons.warning_amber),
+      InsightTone.neutro => (
+        theme.colorScheme.onSurfaceVariant,
+        Icons.hourglass_empty,
       ),
+    };
+    final financial = double.tryParse(summary.financialNetWorth) ?? 0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Card(
+          margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+          color: color.withValues(alpha: 0.10),
+          elevation: 0,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(icon, color: color),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        insight.title,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: color,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (insight.change != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    insight.change!,
+                    style: theme.textTheme.headlineMedium?.copyWith(
+                      color: color,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  if (insight.changeLabel != null)
+                    Text(
+                      insight.changeLabel!,
+                      style: theme.textTheme.bodySmall,
+                    ),
+                ],
+                for (final tip in insight.tips) ...[
+                  const SizedBox(height: 10),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.only(top: 2),
+                        child: Icon(Icons.chevron_right, size: 16),
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(child: Text(tip)),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: _Figure(
+                  label: 'Em dinheiro (sem bens)',
+                  value: summary.financialNetWorth,
+                  color: financial < 0 ? AppColors.deficit : null,
+                ),
+              ),
+              Expanded(
+                child: _Figure(
+                  label: 'Total (com bens)',
+                  value: summary.netWorth,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _Figure extends StatelessWidget {
+  const _Figure({required this.label, required this.value, this.color});
+
+  final String label;
+  final String value;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: theme.textTheme.labelMedium),
+        Text(
+          formatCurrency(value),
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+      ],
     );
   }
 }

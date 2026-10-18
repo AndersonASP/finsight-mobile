@@ -65,6 +65,64 @@ class WealthGroup {
   );
 }
 
+enum WealthTrend { crescendo, caindo, estavel }
+
+/// The API's deterministic "ficando mais rico ou mais pobre" figures — the
+/// app only turns them into text (see wealth_insight.dart).
+class WealthDiagnosis {
+  const WealthDiagnosis({
+    required this.jurosMensais,
+    required this.dividaCara,
+    required this.reserva,
+    required this.disponivelNegativo,
+    this.tendencia,
+    this.variacao,
+    this.isMonthlyAverage = false,
+    this.since,
+  });
+
+  /// Null while there's no data to compare (no history, no full month).
+  final WealthTrend? tendencia;
+
+  /// Change of the financial net worth: since [since], or — when
+  /// [isMonthlyAverage] — per month on average (no history yet).
+  final String? variacao;
+  final bool isMonthlyAverage;
+  final DateTime? since;
+  final String jurosMensais;
+  final String dividaCara;
+  final String reserva;
+  final bool disponivelNegativo;
+
+  static const empty = WealthDiagnosis(
+    jurosMensais: '0.00',
+    dividaCara: '0.00',
+    reserva: '0.00',
+    disponivelNegativo: false,
+  );
+
+  factory WealthDiagnosis.fromJson(Map<String, dynamic> json) {
+    final desde = json['desde'] as Map?;
+    return WealthDiagnosis(
+      tendencia: switch (json['tendencia']) {
+        'crescendo' => WealthTrend.crescendo,
+        'caindo' => WealthTrend.caindo,
+        'estavel' => WealthTrend.estavel,
+        _ => null,
+      },
+      variacao: json['variacao'] as String?,
+      isMonthlyAverage: json['base'] == 'media_mensal',
+      since: desde == null
+          ? null
+          : DateTime(desde['year'] as int, desde['month'] as int),
+      jurosMensais: json['jurosMensais'] as String,
+      dividaCara: json['dividaCara'] as String,
+      reserva: json['reserva'] as String,
+      disponivelNegativo: json['disponivelNegativo'] as bool,
+    );
+  }
+}
+
 class WealthSummary {
   const WealthSummary({
     required this.netWorth,
@@ -78,6 +136,7 @@ class WealthSummary {
     this.previousNetWorth,
     this.reserveMonths,
     this.averageMonthlyCost,
+    this.diagnosis = WealthDiagnosis.empty,
   });
 
   final String netWorth;
@@ -91,6 +150,9 @@ class WealthSummary {
   final int staleCount;
   final List<WealthGroup> assets;
   final List<WealthGroup> liabilities;
+
+  /// Empty when an older cached response (before the API had it) is shown.
+  final WealthDiagnosis diagnosis;
 
   /// Informed values the user can update, stale ones first.
   List<WealthItem> get updatableItems {
@@ -123,6 +185,11 @@ class WealthSummary {
       staleCount: json['staleCount'] as int,
       assets: groups('assets'),
       liabilities: groups('liabilities'),
+      diagnosis: json['diagnostico'] is Map
+          ? WealthDiagnosis.fromJson(
+              Map<String, dynamic>.from(json['diagnostico'] as Map),
+            )
+          : WealthDiagnosis.empty,
     );
   }
 }

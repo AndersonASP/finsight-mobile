@@ -22,6 +22,16 @@ Map<String, dynamic> _summary() => {
   'averageMonthlyCost': '2500.00',
   'reserveLoansOwed': '0.00',
   'staleCount': 1,
+  'diagnostico': {
+    'tendencia': 'caindo',
+    'variacao': '-300.00',
+    'base': 'historico',
+    'desde': {'year': 2026, 'month': 9},
+    'jurosMensais': '240.00',
+    'dividaCara': '2000.00',
+    'reserva': '0.00',
+    'disponivelNegativo': false,
+  },
   'assets': [
     {
       'group': 'disponivel',
@@ -156,17 +166,22 @@ void main() {
 
   setUp(() => backend = _FakeBackend());
 
-  testWidgets('shows net worth, variation, reserve coverage and both sides', (
-    tester,
-  ) async {
-    await pump(tester);
+  testWidgets(
+    'leads with the richer/poorer verdict, then net worth, reserve and both sides',
+    (tester) async {
+      await pump(tester);
 
-    expect(find.textContaining('18.200,00'), findsOneWidget);
-    expect(find.textContaining('1.200,00 vs. mês anterior'), findsOneWidget);
-    expect(find.textContaining('2,4 meses'), findsOneWidget);
-    expect(find.text('O que você tem'), findsOneWidget);
-    expect(find.text('O que você deve'), findsOneWidget);
-  });
+      expect(find.text('Você está ficando mais pobre'), findsOneWidget);
+      expect(find.textContaining('300,00'), findsOneWidget);
+      expect(find.text('desde setembro'), findsOneWidget);
+      expect(find.textContaining('240,00 por mês só de juros'), findsOneWidget);
+      expect(find.textContaining('15.000,00'), findsOneWidget);
+      expect(find.textContaining('18.200,00'), findsOneWidget);
+      expect(find.textContaining('2,4 meses'), findsOneWidget);
+      expect(find.text('O que você tem'), findsOneWidget);
+      expect(find.text('O que você deve'), findsOneWidget);
+    },
+  );
 
   testWidgets('says where each number comes from', (tester) async {
     await pump(tester);
