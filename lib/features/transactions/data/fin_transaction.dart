@@ -10,6 +10,7 @@ class FinTransaction {
     this.categoryId,
     this.description,
     this.counterpartAccountId,
+    this.recurringTransactionId,
   });
 
   final String id;
@@ -21,6 +22,10 @@ class FinTransaction {
   final String? description;
   final String? counterpartAccountId;
 
+  /// Set when this is one occurrence of a recurring lançamento — editing it
+  /// then asks "somente esta" vs. "esta e as futuras".
+  final String? recurringTransactionId;
+
   factory FinTransaction.fromJson(Map<String, dynamic> json) {
     return FinTransaction(
       id: json['id'] as String,
@@ -31,6 +36,7 @@ class FinTransaction {
       categoryId: json['categoryId'] as String?,
       description: json['description'] as String?,
       counterpartAccountId: json['counterpartAccountId'] as String?,
+      recurringTransactionId: json['recurringTransactionId'] as String?,
     );
   }
 
@@ -45,5 +51,6 @@ class FinTransaction {
     'categoryId': categoryId,
     'description': description,
     'counterpartAccountId': counterpartAccountId,
+    'recurringTransactionId': recurringTransactionId,
   };
 }

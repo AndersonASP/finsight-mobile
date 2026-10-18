@@ -476,4 +476,5 @@ FinTransaction _copyWithId(FinTransaction t, String id) => FinTransaction(
   categoryId: t.categoryId,
   description: t.description,
   counterpartAccountId: t.counterpartAccountId,
+  recurringTransactionId: t.recurringTransactionId,
 );

@@ -205,7 +205,8 @@ class _TransactionFormSheetState extends ConsumerState<_TransactionFormSheet> {
   late DateTime _date =
       widget.existing?.date ?? widget.initialDate ?? DateTime.now();
   // Recurrence only applies to a brand-new lançamento (null = "não repete")
-  // — editing an existing occurrence only ever touches that one row.
+  // — editing an existing occurrence asks whether to touch only that row or
+  // the rest of its series too (see _askEditScope).
   RecurrenceInterval? _recurrenceInterval;
   int? _occurrenceCount;
   bool _recurrenceIsOpenEnded = false;
@@ -352,6 +353,41 @@ class _TransactionFormSheetState extends ConsumerState<_TransactionFormSheet> {
     }
   }
 
+  /// Same choice as deleting a recurring occurrence (day_detail_screen):
+  /// 'this', 'future', or null when cancelled.
+  Future<String?> _askEditScope() {
+    return showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Editar lançamento recorrente'),
+        content: const Text('Aplicar a alteração a quais ocorrências?'),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop('this'),
+                child: const Text('Somente esta'),
+              ),
+              const SizedBox(height: 4),
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop('future'),
+                child: const Text('Esta e as futuras'),
+              ),
+              const SizedBox(height: 4),
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancelar'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _save({
     required String? accountId,
     required Category? resolvedCategory,
@@ -368,6 +404,12 @@ class _TransactionFormSheetState extends ConsumerState<_TransactionFormSheet> {
     if (accountId == null) {
       setState(() => _error = 'Cadastre uma conta primeiro.');
       return;
+    }
+    var scope = 'this';
+    if (widget.existing?.recurringTransactionId != null) {
+      final picked = await _askEditScope();
+      if (picked == null) return;
+      scope = picked;
     }
     setState(() {
       _saving = true;
@@ -389,7 +431,24 @@ class _TransactionFormSheetState extends ConsumerState<_TransactionFormSheet> {
         counterpartAccountId: counterpartAccountId,
       );
       var savedOffline = false;
-      if (widget.existing != null) {
+      if (widget.existing != null && scope == 'future') {
+        // The server knows the whole series; offline only "somente esta".
+        await sync.requireOnline(
+          () => ref
+              .read(transactionsRepositoryProvider)
+              .update(
+                widget.existing!.id,
+                scope: scope,
+                accountId: accountId,
+                type: _type,
+                amount: amount,
+                date: _date,
+                categoryId: categoryId,
+                description: description,
+                counterpartAccountId: counterpartAccountId,
+              ),
+        );
+      } else if (widget.existing != null) {
         savedOffline = await sync.updateTransaction(
           original: widget.existing!,
           updated: edited,

@@ -92,8 +92,13 @@ class TransactionsRepository {
     return FinTransaction.fromJson(response.data as Map<String, dynamic>);
   }
 
+  /// `scope: 'future'` only matters when [id] is one occurrence of a
+  /// recurring lançamento — the fields changed here are also applied to
+  /// every later occurrence in the series (a date change shifts them by the
+  /// same number of days), keeping past ones. Ignored for a plain one.
   Future<FinTransaction> update(
     String id, {
+    String scope = 'this',
     String? accountId,
     FinTransactionType? type,
     String? amount,
@@ -104,6 +109,7 @@ class TransactionsRepository {
   }) async {
     final response = await _dio.patch(
       '/transactions/$id',
+      queryParameters: {'scope': scope},
       data: {
         'accountId': ?accountId,
         'type': ?type?.apiValue,
