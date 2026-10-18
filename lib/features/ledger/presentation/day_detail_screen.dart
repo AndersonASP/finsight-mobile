@@ -436,7 +436,12 @@ class _ItemTile extends ConsumerWidget {
                 formatCurrency(item.amount),
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
-              if (item.installment != null) ...[
+              // A card subscription is also a 1-installment purchase — its
+              // recurrence is what matters, not "# 1/1 mensais".
+              if (item.recurring != null) ...[
+                const SizedBox(height: 2),
+                _RecurringBadge(recurring: item.recurring!),
+              ] else if (item.installment != null) ...[
                 const SizedBox(height: 2),
                 Text(
                   '# ${item.installment!.sequence}/${item.installment!.count} mensais',
@@ -457,6 +462,33 @@ class _ItemTile extends ConsumerWidget {
       onTap: _isEditable ? () => _edit(context, ref) : null,
       onLongPress: _isDeletable ? () => _confirmDelete(context, ref) : null,
       child: content,
+    );
+  }
+}
+
+/// Marks one occurrence of a recurring series: the repeat icon plus "2/5"
+/// for a finite series, or just "recorrente" when it's open-ended.
+class _RecurringBadge extends StatelessWidget {
+  const _RecurringBadge({required this.recurring});
+
+  final RecurringInfo recurring;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.onSurfaceVariant;
+    final count = recurring.count;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.repeat, size: 14, color: color),
+        const SizedBox(width: 4),
+        Text(
+          count != null
+              ? '${recurring.occurrenceIndex + 1}/$count'
+              : 'recorrente',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: color),
+        ),
+      ],
     );
   }
 }

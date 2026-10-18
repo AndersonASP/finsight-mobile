@@ -15,19 +15,30 @@ class InstallmentInfo {
   }
 }
 
-/// Non-null when this item is one occurrence of a recurring lançamento —
-/// lets the UI offer "excluir esta" vs. "excluir esta e as futuras" instead
-/// of a plain delete confirmation.
+/// Non-null when this item is one occurrence of a recurring lançamento (or
+/// card subscription) — lets the UI offer "excluir esta" vs. "excluir esta e
+/// as futuras" instead of a plain delete confirmation, and mark the row as
+/// recurring ("2/5", or just the mark when open-ended).
 class RecurringInfo {
-  const RecurringInfo({required this.seriesId, required this.occurrenceIndex});
+  const RecurringInfo({
+    required this.seriesId,
+    required this.occurrenceIndex,
+    this.count,
+  });
 
   final String seriesId;
+
+  /// 0-based.
   final int occurrenceIndex;
+
+  /// The series' length, or null for "a perder de vista".
+  final int? count;
 
   factory RecurringInfo.fromJson(Map<String, dynamic> json) {
     return RecurringInfo(
       seriesId: json['seriesId'] as String,
       occurrenceIndex: json['occurrenceIndex'] as int,
+      count: json['count'] as int?,
     );
   }
 }

@@ -90,6 +90,59 @@ void main() {
   );
 
   testWidgets(
+    'recurring items show the repeat mark with "n/total", or just "recorrente" when open-ended — card subscriptions too',
+    (WidgetTester tester) async {
+      Map<String, dynamic> item(
+        String id,
+        String type,
+        String description,
+        int index,
+        int? count,
+      ) => {
+        'id': id,
+        'type': type,
+        'description': description,
+        'date': '2026-09-02',
+        'amount': '10.00',
+        'categoryId': null,
+        'categoryName': null,
+        'categoryColor': null,
+        'installment': type == 'cartao' ? {'sequence': 1, 'count': 1} : null,
+        'recurring': {
+          'seriesId': 's-$id',
+          'occurrenceIndex': index,
+          'count': count,
+        },
+      };
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            dioProvider.overrideWithValue(
+              _buildFakeDio(
+                dayDetail: [
+                  item('a', 'saida', 'Curso', 1, 5),
+                  item('b', 'saida', 'Academia', 8, null),
+                  item('c', 'cartao', 'Revista', 0, 3),
+                  item('d', 'cartao', 'Streaming', 2, null),
+                ],
+              ),
+            ),
+          ],
+          child: MaterialApp(home: DayDetailScreen(date: DateTime(2026, 9, 2))),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.repeat), findsNWidgets(4));
+      expect(find.text('2/5'), findsOneWidget);
+      expect(find.text('1/3'), findsOneWidget);
+      expect(find.text('recorrente'), findsNWidgets(2));
+      // A subscription's "1 installment" isn't shown as a parcelamento.
+      expect(find.text('# 1/1 mensais'), findsNothing);
+    },
+  );
+
+  testWidgets(
     'Day detail filter hides items that do not match the selected type',
     (WidgetTester tester) async {
       tester.view.physicalSize = const Size(1200, 3000);
