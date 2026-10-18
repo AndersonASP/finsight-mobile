@@ -18,8 +18,9 @@ class TagsScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Tags'),
-        leading: const TodayButton(),
+        // Opened from Menu: the leading slot keeps the back button.
         actions: [
+          const TodayButton(),
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: () => _showCreateCategorySheet(context),

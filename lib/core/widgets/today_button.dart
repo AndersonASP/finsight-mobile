@@ -4,7 +4,9 @@ import '../providers/today_navigation_provider.dart';
 import '../theme/app_colors.dart';
 
 /// A little calendar-page icon showing today's day number. Tapping it jumps
-/// to today's row on the Saldos screen, from anywhere in the app.
+/// to today's row on the Saldos screen, from anywhere in the app — closing
+/// any screen pushed on top of the tabs (e.g. Tags, opened from Menu), which
+/// would otherwise keep covering Saldos.
 class TodayButton extends ConsumerWidget {
   const TodayButton({super.key});
 
@@ -14,7 +16,10 @@ class TodayButton extends ConsumerWidget {
 
     return IconButton(
       tooltip: 'Ir para hoje',
-      onPressed: () => ref.read(goToTodaySignalProvider.notifier).state++,
+      onPressed: () {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+        ref.read(goToTodaySignalProvider.notifier).state++;
+      },
       icon: SizedBox(
         width: 34,
         height: 34,
