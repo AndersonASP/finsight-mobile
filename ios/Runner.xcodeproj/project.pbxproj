@@ -13,6 +13,7 @@
 		331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C807B294A618700263BE5 /* RunnerTests.swift */; };
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
 		44B5DE73AEEAC94A382BE925 /* FinSightAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25151011C4A4A836CD842165 /* FinSightAPI.swift */; };
+		4B83BF03F8711A42E2CD0DEB /* NativeSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C3E34F21A13C263FA6B797E /* NativeSession.swift */; };
 		4CA70341B52985FDDF1A6F3B /* RegistrarGastoIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC3A1C8B9C4BD2040903AF0C /* RegistrarGastoIntent.swift */; };
 		74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FAE1ED2DC5600515810 /* AppDelegate.swift */; };
 		7884E8682EC3CC0700C636F2 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */; };
@@ -20,6 +21,7 @@
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
+		AE07BA566E5939832B75B752 /* FinSightAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25151011C4A4A836CD842165 /* FinSightAPI.swift */; };
 		C9E6AEBF31C42802CD27D3B1 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = BEF88B011FA1E6C914FE4E1A /* PrivacyInfo.xcprivacy */; };
 		D858A9ECE3F48B34E323B2C2 /* NativeSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C3E34F21A13C263FA6B797E /* NativeSession.swift */; };
 		E044E0E554C2527DB7B2D61B /* FinSightWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 38FEDB84B8BB017C49D3251C /* FinSightWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -416,6 +418,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				F80BEA17D7A71ECD0C52DB8E /* FinSightWidget.swift in Sources */,
+				4B83BF03F8711A42E2CD0DEB /* NativeSession.swift in Sources */,
+				AE07BA566E5939832B75B752 /* FinSightAPI.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

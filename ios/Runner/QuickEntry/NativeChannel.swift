@@ -11,6 +11,7 @@ enum NativeChannel {
     channel.setMethodCallHandler { call, result in
       switch call.method {
       case "setSession":
+        NativeSession.migrateToSharedGroup()
         let args = call.arguments as? [String: Any] ?? [:]
         if let baseUrl = args["apiBaseUrl"] as? String {
           NativeSession.apiBaseUrl = URL(string: baseUrl)

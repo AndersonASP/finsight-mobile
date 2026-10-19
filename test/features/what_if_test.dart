@@ -1,5 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:finsight/core/network/network_providers.dart';
+import 'package:finsight/core/notifications/reminder_notifications.dart';
+import 'package:finsight/core/notifications/reminder_planner.dart';
 import 'package:finsight/features/what_if/application/what_if_providers.dart';
 import 'package:finsight/features/what_if/data/what_if.dart';
 import 'package:finsight/features/what_if/presentation/what_if_result_view.dart';
@@ -74,6 +76,38 @@ Map<String, dynamic> _result({
   'traducao': {'diasDeDiario': '45', 'percentDaEntrada': '60'},
 };
 
+class _FakeNotifications implements ReminderNotifications {
+  int permissionRequests = 0;
+
+  @override
+  Future<void> init(void Function(DateTime dueDate) onOpen) async {}
+
+  @override
+  Future<bool> requestPermission() async {
+    permissionRequests++;
+    return true;
+  }
+
+  @override
+  Future<void> replaceAll(List<PlannedReminder> reminders) async {}
+
+  @override
+  Future<void> cancelAll() async {}
+
+  @override
+  Future<void> scheduleOne(PlannedReminder reminder) async {}
+
+  @override
+  Future<DateTime?> launchDueDate() async => null;
+
+  @override
+  Future<void> showNow({
+    required int id,
+    required String title,
+    required String body,
+  }) async {}
+}
+
 WishlistItem _item(String id, String veredito) => WishlistItem.fromJson({
   'id': id,
   'description': 'Bike',
@@ -92,6 +126,7 @@ void main() {
     tester,
   ) async {
     final requests = <RequestOptions>[];
+    final notifications = _FakeNotifications();
     final dio = Dio(BaseOptions(baseUrl: 'http://localhost'));
     dio.interceptors.add(
       InterceptorsWrapper(
@@ -119,7 +154,10 @@ void main() {
     );
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [dioProvider.overrideWithValue(dio)],
+        overrides: [
+          dioProvider.overrideWithValue(dio),
+          reminderNotificationsProvider.overrideWithValue(notifications),
+        ],
         child: const MaterialApp(home: WhatIfScreen()),
       ),
     );
@@ -167,6 +205,8 @@ void main() {
       'interestFreeInstallments': 1,
     });
     expect(find.text('Em Quero comprar'), findsOneWidget);
+    // The "agora cabe" alert needs permission: asked when saving.
+    expect(notifications.permissionRequests, 1);
   });
 
   test('notifies only when a known item turns "cabe"', () {

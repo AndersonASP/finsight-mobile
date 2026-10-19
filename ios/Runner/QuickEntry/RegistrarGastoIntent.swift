@@ -1,5 +1,6 @@
 import AppIntents
 import Foundation
+import WidgetKit
 
 /// "Registrar gasto" — logs a purchase without opening the app. Built for the
 /// Shortcuts *Transaction* automation (Apple Pay): Valor ← Amount,
@@ -46,6 +47,8 @@ struct RegistrarGastoIntent: AppIntent, ForegroundContinuableIntent {
 
     do {
       let result = try await FinSightAPI.createQuickEntry(entry)
+      // The widget fetches the new summary itself on reload.
+      WidgetCenter.shared.reloadAllTimelines()
       let tag = result.categoryName.map { " · \($0)" } ?? ""
       return .result(
         dialog: "\(Self.brl(entry.amount)) em \(result.description) lançado no \(result.paymentName)\(tag)."

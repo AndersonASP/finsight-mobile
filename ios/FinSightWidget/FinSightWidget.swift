@@ -2,8 +2,11 @@ import SwiftUI
 import WidgetKit
 
 // The app writes `/insights/summary` into the shared App Group (see
-// lib/core/home_widget/widget_sync.dart) whenever its data changes; the
-// widget only reads that snapshot — no network, no session here.
+// lib/core/home_widget/widget_sync.dart) whenever its data changes. The
+// widget also fetches it itself on every timeline reload (about every 30
+// min, and right after "Registrar gasto"), with the session the app mirrors
+// into the App Group keychain (NativeSession), so it stays fresh with the
+// app closed. Offline or logged out, it keeps showing the last snapshot.
 
 private let appGroupId = "group.dev.andalsp.finsight"
 private let summaryKey = "summary"
@@ -44,6 +47,16 @@ struct Summary: Decodable {
   let proximasContas: [Bill]
   /// Optional: snapshots written before the "mar vermelho" existed lack it.
   let marVermelho: RedSea?
+
+  /// Best effort: on any failure the last snapshot stays.
+  static func refreshFromAPI() async {
+    guard NativeSession.refreshToken != nil,
+          let json = try? await FinSightAPI.fetchSummaryJSON(),
+          let data = json.data(using: .utf8),
+          (try? JSONDecoder().decode(Summary.self, from: data)) != nil
+    else { return }
+    UserDefaults(suiteName: appGroupId)?.set(json, forKey: summaryKey)
+  }
 
   static func load() -> Summary? {
     guard let json = UserDefaults(suiteName: appGroupId)?.string(forKey: summaryKey),
@@ -177,10 +190,13 @@ struct SummaryProvider: TimelineProvider {
   }
 
   func getTimeline(in context: Context, completion: @escaping (Timeline<SummaryEntry>) -> Void) {
-    // The app reloads the timeline after every change; the hourly re-read
-    // only keeps "hoje/amanhã" labels right across midnight.
-    let entry = SummaryEntry(date: Date(), summary: Summary.load())
-    completion(Timeline(entries: [entry], policy: .after(Date().addingTimeInterval(3600))))
+    Task {
+      await Summary.refreshFromAPI()
+      let entry = SummaryEntry(date: Date(), summary: Summary.load())
+      // WidgetKit budgets reloads; ~30 min keeps lançamentos made outside
+      // the app (Claude, another device) and "hoje/amanhã" up to date.
+      completion(Timeline(entries: [entry], policy: .after(Date().addingTimeInterval(30 * 60))))
+    }
   }
 }
 

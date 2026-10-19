@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/notifications/reminder_notifications.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/brl_amount_field.dart';
 import '../../cards/application/cards_providers.dart';
@@ -121,10 +122,20 @@ class _WhatIfScreenState extends ConsumerState<WhatIfScreen> {
             interestFreeInstallments: _interestFree,
           );
       ref.invalidate(wishlistProvider);
+      // The "agora cabe" alert needs notification permission; asked here
+      // (iOS only prompts once — afterwards this just reports the setting).
+      final allowed = await ref
+          .read(reminderNotificationsProvider)
+          .requestPermission();
       if (!mounted) return true;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Salvo em Quero comprar. Aviso quando passar a caber.'),
+        SnackBar(
+          content: Text(
+            allowed
+                ? 'Salvo em Quero comprar. Aviso quando passar a caber.'
+                : 'Salvo em Quero comprar. Para receber o aviso quando couber, '
+                      'ative as notificações do FinSight nos Ajustes.',
+          ),
         ),
       );
       return true;

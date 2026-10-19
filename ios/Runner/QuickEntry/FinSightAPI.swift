@@ -17,7 +17,7 @@ struct QuickEntryResult: Decodable {
   let paymentName: String
 }
 
-/// Minimal API client for the App Intents: bearer auth with one silent
+/// Minimal API client for the App Intents and the widget: bearer auth with one silent
 /// refresh on 401, using the session mirrored in `NativeSession`.
 enum FinSightAPI {
   static func createQuickEntry(_ entry: PendingQuickEntry) async throws -> QuickEntryResult {
@@ -25,6 +25,13 @@ enum FinSightAPI {
     if let cardName = entry.cardName, !cardName.isEmpty { body["cardName"] = cardName }
     let data = try await send("POST", "/quick-entries", body: body)
     return try JSONDecoder().decode(QuickEntryResult.self, from: data)
+  }
+
+  /// `/insights/summary` as raw JSON, exactly what the widget snapshot stores.
+  static func fetchSummaryJSON() async throws -> String {
+    let data = try await send("GET", "/insights/summary", body: nil)
+    guard let json = String(data: data, encoding: .utf8) else { throw FinSightAPIError.offline }
+    return json
   }
 
   private static func send(_ method: String, _ path: String, body: [String: Any]?, retried: Bool = false) async throws -> Data {
