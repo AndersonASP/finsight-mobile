@@ -174,12 +174,13 @@ void main() {
       expect(find.text('Você está ficando mais pobre'), findsOneWidget);
       expect(find.textContaining('300,00'), findsOneWidget);
       expect(find.text('desde setembro'), findsOneWidget);
-      expect(find.textContaining('240,00 por mês só de juros'), findsOneWidget);
+      // Reserve under the target: it comes before the expensive debt.
+      expect(find.textContaining('Ela vem antes de tudo'), findsOneWidget);
       expect(find.textContaining('15.000,00'), findsOneWidget);
       expect(find.textContaining('18.200,00'), findsOneWidget);
-      expect(find.textContaining('2,4 meses'), findsOneWidget);
+      expect(find.text('Sua reserva cobre 2,4 de 8 meses'), findsOneWidget);
       expect(find.text('O que você tem'), findsOneWidget);
-      expect(find.text('O que você deve'), findsOneWidget);
+      expect(find.text('Saldo devedor'), findsOneWidget);
     },
   );
 

@@ -11,6 +11,7 @@ import '../application/wealth_providers.dart';
 import '../data/wealth.dart';
 import 'asset_sheets.dart';
 import 'debt_sheet.dart';
+import 'goals_screen.dart';
 
 /// Patrimônio: what you have, what you owe, and — for every number — where
 /// it came from ("pelos lançamentos" vs "informado por você"), so it can be
@@ -152,6 +153,8 @@ class _WealthBody extends ConsumerWidget {
       children: [
         _Header(summary: summary),
         if (summary.staleCount > 0) _StaleBanner(summary: summary),
+        if (summary.netWorthPercent != null)
+          _NetWorthPercentCard(summary: summary),
         _ReserveCard(summary: summary),
         if ((double.tryParse(summary.reserveLoansOwed) ?? 0) > 0)
           ListTile(
@@ -177,11 +180,24 @@ class _WealthBody extends ConsumerWidget {
           _SideHeader(title: 'O que você tem', total: summary.totalAssets),
         for (final g in summary.assets) _GroupTile(group: g, isDebt: false),
         if (summary.liabilities.isNotEmpty)
-          _SideHeader(
-            title: 'O que você deve',
-            total: summary.totalLiabilities,
-          ),
+          _SideHeader(title: 'Saldo devedor', total: summary.totalLiabilities),
         for (final g in summary.liabilities) _GroupTile(group: g, isDebt: true),
+        if (summary.commitments.isNotEmpty) ...[
+          _SideHeader(
+            title: 'Compromissos do cartão',
+            total: summary.cardCommitments,
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              'Parcelas a vencer de compras já feitas. Não são saldo devedor '
+              '(não entram no % líquido), mas já saem do seu dinheiro livre.',
+              style: TextStyle(fontSize: 12),
+            ),
+          ),
+          for (final g in summary.commitments)
+            _GroupTile(group: g, isDebt: true),
+        ],
         const _HistoryChart(),
         if (summary.updatableItems.isNotEmpty)
           Padding(
@@ -197,8 +213,9 @@ class _WealthBody extends ConsumerWidget {
   }
 }
 
-/// The headline: "ficando mais rico ou mais pobre" (financial net worth, bens
-/// left out), what to do about it, then the totals as supporting numbers.
+/// The headline: "ficando mais rico ou mais pobre" (the total patrimônio
+/// líquido, bens included — método R7), what to do about it, then the
+/// totals as supporting numbers.
 class _Header extends StatelessWidget {
   const _Header({required this.summary});
 
@@ -284,15 +301,15 @@ class _Header extends StatelessWidget {
             children: [
               Expanded(
                 child: _Figure(
-                  label: 'Em dinheiro (sem bens)',
-                  value: summary.financialNetWorth,
-                  color: financial < 0 ? AppColors.deficit : null,
+                  label: 'Patrimônio líquido',
+                  value: summary.netWorth,
                 ),
               ),
               Expanded(
                 child: _Figure(
-                  label: 'Total (com bens)',
-                  value: summary.netWorth,
+                  label: 'Livre em dinheiro',
+                  value: summary.financialNetWorth,
+                  color: financial < 0 ? AppColors.deficit : null,
                 ),
               ),
             ],
@@ -363,13 +380,15 @@ class _ReserveCard extends StatelessWidget {
     final months = summary.reserveMonths == null
         ? null
         : double.tryParse(summary.reserveMonths!);
+    final target = summary.reserveTargetMonths;
     final color = months == null
         ? Theme.of(context).colorScheme.onSurfaceVariant
-        : months >= 6
+        : summary.reserveComplete
         ? AppColors.surplus
         : months >= 3
         ? Colors.amber.shade700
         : AppColors.deficit;
+    final missing = double.tryParse(summary.reserveMissing ?? '') ?? 0;
     return Card(
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       child: ListTile(
@@ -378,14 +397,74 @@ class _ReserveCard extends StatelessWidget {
           months == null
               ? 'Reserva de emergência'
               : 'Sua reserva cobre ${months.toStringAsFixed(1).replaceAll('.', ',')} '
-                    '${months == 1 ? 'mês' : 'meses'}',
+                    'de $target meses',
           style: TextStyle(color: color, fontWeight: FontWeight.bold),
         ),
         subtitle: Text(
           months == null
               ? 'Precisa de pelo menos 1 mês completo de lançamentos para calcular.'
-              : 'Custo de vida médio: ${formatCurrency(summary.averageMonthlyCost!)}/mês '
-                    '(últimos 3 meses). O ideal é de 6 meses para cima.',
+              : 'Custo de vida puro: ${formatCurrency(summary.averageMonthlyCost!)}/mês '
+                    '(últimos 3 meses, sem economias). '
+                    '${missing > 0 ? 'Faltam ${formatCurrency(summary.reserveMissing!)} para a meta — ela vem antes de investir.' : 'Meta atingida.'}',
+        ),
+        trailing: const Icon(Icons.tune),
+        onTap: () => Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => const GoalsScreen())),
+      ),
+    );
+  }
+}
+
+/// Método R2: patrimônio líquido ÷ total, with the 40% warning light.
+class _NetWorthPercentCard extends StatelessWidget {
+  const _NetWorthPercentCard({required this.summary});
+
+  final WealthSummary summary;
+
+  @override
+  Widget build(BuildContext context) {
+    final percent = double.tryParse(summary.netWorthPercent!) ?? 0;
+    final alert = summary.netWorthAlert;
+    final color = alert ? AppColors.deficit : AppColors.surplus;
+    return Card(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  alert ? Icons.warning_amber : Icons.check_circle_outline,
+                  color: color,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '${percent.toStringAsFixed(1).replaceAll('.', ',')}% do seu patrimônio é seu',
+                    style: TextStyle(color: color, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            LinearProgressIndicator(
+              value: (percent / 100).clamp(0, 1),
+              color: color,
+              minHeight: 6,
+              borderRadius: BorderRadius.circular(3),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              alert
+                  ? 'Abaixo de ${summary.netWorthMinPercent}%: boa parte do que você tem ainda é do banco. '
+                        'Evite novas dívidas e ${summary.reserveComplete ? 'use a sobra para amortizar parcelas.' : 'guarde mais até completar a reserva.'}'
+                  : 'Percentual líquido (patrimônio − saldo devedor) acima de ${summary.netWorthMinPercent}%.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
         ),
       ),
     );

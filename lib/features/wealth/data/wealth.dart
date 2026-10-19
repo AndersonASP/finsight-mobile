@@ -77,6 +77,7 @@ class WealthDiagnosis {
     required this.disponivelNegativo,
     this.tendencia,
     this.variacao,
+    this.variacaoFinanceira,
     this.isMonthlyAverage = false,
     this.since,
   });
@@ -84,9 +85,13 @@ class WealthDiagnosis {
   /// Null while there's no data to compare (no history, no full month).
   final WealthTrend? tendencia;
 
-  /// Change of the financial net worth: since [since], or — when
-  /// [isMonthlyAverage] — per month on average (no history yet).
+  /// Change of the total patrimônio líquido (bens included): since [since],
+  /// or — when [isMonthlyAverage] — per month on average (no history yet).
   final String? variacao;
+
+  /// The same comparison for the money that's actually free (no bens, no
+  /// card commitments) — secondary figure.
+  final String? variacaoFinanceira;
   final bool isMonthlyAverage;
   final DateTime? since;
   final String jurosMensais;
@@ -111,6 +116,7 @@ class WealthDiagnosis {
         _ => null,
       },
       variacao: json['variacao'] as String?,
+      variacaoFinanceira: json['variacaoFinanceira'] as String?,
       isMonthlyAverage: json['base'] == 'media_mensal',
       since: desde == null
           ? null
@@ -133,8 +139,16 @@ class WealthSummary {
     required this.staleCount,
     required this.assets,
     required this.liabilities,
+    this.commitments = const [],
+    this.cardCommitments = '0.00',
+    this.netWorthPercent,
+    this.netWorthMinPercent = 40,
+    this.netWorthAlert = false,
     this.previousNetWorth,
     this.reserveMonths,
+    this.reserveTargetMonths = 8,
+    this.reserveMissing,
+    this.reserveComplete = false,
     this.averageMonthlyCost,
     this.diagnosis = WealthDiagnosis.empty,
   });
@@ -145,7 +159,24 @@ class WealthSummary {
   final String totalLiabilities;
   final String? previousNetWorth;
   final String? reserveMonths;
+
+  /// The user's reserve target in months (Metas) — the only place the
+  /// number lives; never hardcode it in the app.
+  final int reserveTargetMonths;
+
+  /// custo de vida × meta − reserva (null without a month to measure).
+  final String? reserveMissing;
+  final bool reserveComplete;
   final String? averageMonthlyCost;
+
+  /// Patrimônio líquido as a share of the total (método: 40% or more).
+  final String? netWorthPercent;
+  final int netWorthMinPercent;
+  final bool netWorthAlert;
+
+  /// Card installments still to come — apart from the saldo devedor.
+  final List<WealthGroup> commitments;
+  final String cardCommitments;
   final String reserveLoansOwed;
   final int staleCount;
   final List<WealthGroup> assets;
@@ -185,6 +216,16 @@ class WealthSummary {
       staleCount: json['staleCount'] as int,
       assets: groups('assets'),
       liabilities: groups('liabilities'),
+      commitments: json['commitments'] is List
+          ? groups('commitments')
+          : const [],
+      cardCommitments: json['cardCommitments'] as String? ?? '0.00',
+      netWorthPercent: json['netWorthPercent'] as String?,
+      netWorthMinPercent: json['netWorthMinPercent'] as int? ?? 40,
+      netWorthAlert: json['netWorthAlert'] as bool? ?? false,
+      reserveTargetMonths: json['reserveTargetMonths'] as int? ?? 8,
+      reserveMissing: json['reserveMissing'] as String?,
+      reserveComplete: json['reserveComplete'] as bool? ?? false,
       diagnosis: json['diagnostico'] is Map
           ? WealthDiagnosis.fromJson(
               Map<String, dynamic>.from(json['diagnostico'] as Map),

@@ -33,6 +33,7 @@ import '../../what_if/presentation/wishlist_screen.dart';
 import '../../totals/application/totals_providers.dart';
 import '../../totals/presentation/totais_screen.dart';
 import '../../transactions/presentation/add_transaction_sheet.dart';
+import '../../wealth/presentation/goals_screen.dart';
 import '../../wealth/application/wealth_providers.dart';
 import '../../wealth/presentation/wealth_screen.dart';
 
@@ -189,6 +190,11 @@ class _MenuTab extends ConsumerWidget {
             icon: Icons.pie_chart_outline,
             title: 'Previsão de diário',
             builder: (_) => const BudgetScreen(),
+          ),
+          _MenuItem(
+            icon: Icons.flag_outlined,
+            title: 'Metas',
+            builder: (_) => const GoalsScreen(),
           ),
           const _MenuSection('Ferramentas'),
           _MenuItem(
