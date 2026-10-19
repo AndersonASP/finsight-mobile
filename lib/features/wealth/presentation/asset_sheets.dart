@@ -42,6 +42,8 @@ class _AssetFormState extends ConsumerState<_AssetForm> {
   late bool _isLiquid = widget.existing != null
       ? widget.existing!.details['isLiquid'] as bool
       : _kind == AssetKind.aReceber;
+  late bool _producesIncome =
+      widget.existing?.details['block'] == 'investimentos';
   bool _saving = false;
   String? _error;
 
@@ -69,6 +71,9 @@ class _AssetFormState extends ConsumerState<_AssetForm> {
             kind: _kind,
             value: value,
             isLiquid: _isLiquid,
+            block: !isReceivableKind(_kind) && _producesIncome
+                ? AssetBlock.investimentos
+                : AssetBlock.outros,
           );
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
@@ -129,8 +134,10 @@ class _AssetFormState extends ConsumerState<_AssetForm> {
             Text(isReceivable ? 'Valor a receber' : 'Quanto vale hoje'),
             if (!isReceivable)
               Text(
-                'Uma estimativa honesta: o preço que você conseguiria vender '
-                'hoje (FIPE para veículos, anúncios parecidos para imóveis).',
+                'Valor de mercado conservador: quanto você conseguiria vender '
+                'hoje (FIPE para veículos, anúncios parecidos para imóveis). '
+                'Num bem comprado agora, use o custo total — com impostos e '
+                'documentação. Se ele perder valor, atualize para baixo.',
                 style: theme.textTheme.bodySmall,
               ),
             BrlAmountField(controller: _value),
@@ -144,6 +151,17 @@ class _AssetFormState extends ConsumerState<_AssetForm> {
               value: _isLiquid,
               onChanged: (v) => setState(() => _isLiquid = v),
             ),
+            if (!isReceivable)
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Gera renda (conta como investimento)'),
+                subtitle: const Text(
+                  'Ex.: imóvel alugado. Aparece em Investimentos em vez de '
+                  'Bens.',
+                ),
+                value: _producesIncome,
+                onChanged: (v) => setState(() => _producesIncome = v),
+              ),
             if (_error != null)
               Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
             const SizedBox(height: 12),
@@ -214,7 +232,10 @@ class _UpdateValueFormState extends ConsumerState<_UpdateValueForm> {
 
   String get _question => switch (widget.item.kind) {
     WealthItemKind.debt => 'Quanto você deve hoje?',
-    WealthItemKind.account => 'Quanto vale hoje? (veja no app da corretora)',
+    WealthItemKind.account =>
+      widget.item.details['accountType'] == 'savings_reserve'
+          ? 'Qual o saldo hoje, com rendimento? (veja no app do banco)'
+          : 'Quanto vale hoje? (veja no app da corretora)',
     _ => 'Quanto vale hoje?',
   };
 
@@ -290,3 +311,5 @@ class _UpdateValueFormState extends ConsumerState<_UpdateValueForm> {
     );
   }
 }
+
+bool isReceivableKind(AssetKind kind) => kind == AssetKind.aReceber;

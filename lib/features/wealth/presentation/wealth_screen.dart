@@ -537,9 +537,14 @@ class WealthItemTile extends ConsumerWidget {
     }
     if (item.asOf == null) return 'nunca atualizado';
     final days = DateTime.now().difference(item.asOf!).inDays;
-    return days <= 0
+    final informed = days <= 0
         ? 'informado hoje'
         : 'informado há $days ${days == 1 ? 'dia' : 'dias'}';
+    final owed = d['debtOutstanding'] as String?;
+    return owed == null
+        ? informed
+        : '$informed · financiado: deve ${formatCurrency(owed)}, '
+              'seu ${formatCurrency(d['equity'] as String)}';
   }
 
   Future<void> _open(BuildContext context, WidgetRef ref) async {

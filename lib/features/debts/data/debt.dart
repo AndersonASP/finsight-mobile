@@ -62,6 +62,7 @@ class Debt {
     this.payoffAmount,
     this.monthlyInterestRate,
     this.notes,
+    this.assetId,
   });
 
   final String id;
@@ -76,6 +77,9 @@ class Debt {
   final String? payoffAmount;
   final String? monthlyInterestRate;
   final String? notes;
+
+  /// The bem this debt financed, if linked.
+  final String? assetId;
 
   factory Debt.fromJson(Map<String, dynamic> json) {
     return Debt(
@@ -93,6 +97,7 @@ class Debt {
       payoffAmount: json['payoffAmount'] as String?,
       monthlyInterestRate: json['monthlyInterestRate'] as String?,
       notes: json['notes'] as String?,
+      assetId: json['assetId'] as String?,
     );
   }
 }

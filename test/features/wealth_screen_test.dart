@@ -12,7 +12,11 @@ String _daysAgo(int n) => DateTime.now()
     .toIso8601String()
     .substring(0, 10);
 
+/// Extra fields merged into the summary for a single test.
+Map<String, dynamic> _extra = const {};
+
 Map<String, dynamic> _summary() => {
+  ..._extra,
   'netWorth': '18200.00',
   'financialNetWorth': '15000.00',
   'totalAssets': '35950.00',
@@ -181,6 +185,66 @@ void main() {
       expect(find.text('Sua reserva cobre 2,4 de 8 meses'), findsOneWidget);
       expect(find.text('O que você tem'), findsOneWidget);
       expect(find.text('Saldo devedor'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'a bem that produces income is saved in the investimentos bloco',
+    (tester) async {
+      await pump(tester);
+
+      await tester.tap(find.byTooltip('Adicionar'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Bem'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Nome (ex.: Apartamento, Carro)'),
+        'Apto alugado',
+      );
+      await tester.enterText(find.byType(TextField).last, '30000000');
+      await tester.tap(find.text('Gera renda (conta como investimento)'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Salvar'));
+      await tester.pumpAndSettle();
+
+      final post = backend.requests.singleWhere(
+        (r) => r.startsWith('POST /assets'),
+      );
+      expect(post, contains('block: investimentos'));
+      expect(post, contains('300000.00'));
+    },
+  );
+
+  testWidgets(
+    'shows the % líquido light and keeps card commitments apart from the saldo devedor',
+    (tester) async {
+      _extra = {
+        'netWorthPercent': '26.2',
+        'netWorthAlert': true,
+        'reserveComplete': false,
+        'reserveTargetMonths': 12,
+        'cardCommitments': '339.90',
+        'commitments': [
+          {
+            'group': 'cartao',
+            'label': 'Compromissos do cartão (parcelas a vencer)',
+            'total': '339.90',
+            'items': <dynamic>[],
+          },
+        ],
+      };
+      addTearDown(() => _extra = const {});
+      await pump(tester);
+
+      expect(find.text('26,2% do seu patrimônio é seu'), findsOneWidget);
+      expect(find.textContaining('Abaixo de 40%'), findsOneWidget);
+      expect(find.text('Sua reserva cobre 2,4 de 12 meses'), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.text('Compromissos do cartão'),
+        300,
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Compromissos do cartão'), findsOneWidget);
     },
   );
 

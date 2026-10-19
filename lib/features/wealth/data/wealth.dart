@@ -191,9 +191,12 @@ class WealthSummary {
       for (final g in [...assets, ...liabilities])
         for (final i in g.items)
           // Fixed-installment debts update themselves by the calendar.
-          if (i.source == WealthSource.informado &&
-              (i.kind != WealthItemKind.debt ||
-                  i.details['debtKind'] == 'saldo_variavel'))
+          if ((i.source == WealthSource.informado &&
+                  (i.kind != WealthItemKind.debt ||
+                      i.details['debtKind'] == 'saldo_variavel')) ||
+              // The reserve earns (~100% do CDI): its balance can be informed
+              // even while it's still just the ledger.
+              i.details['accountType'] == 'savings_reserve')
             i,
     ];
     items.sort((a, b) => (b.stale ? 1 : 0) - (a.stale ? 1 : 0));
@@ -246,6 +249,10 @@ class NetWorthPoint {
     netWorth: json['netWorth'] as String,
   );
 }
+
+/// Which bloco a bem counts in: most are "outros"; one that produces income
+/// (imóvel alugado) is an investimento.
+enum AssetBlock { outros, investimentos }
 
 enum AssetKind {
   imovel('Imóvel'),

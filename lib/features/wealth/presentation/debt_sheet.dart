@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/widgets/brl_amount_field.dart';
 import '../../debts/data/debt.dart';
 import '../../debts/data/debts_repository.dart';
+import '../application/wealth_providers.dart';
+import '../data/wealth.dart';
 
 /// Creates or edits a debt — described once, never paid off by hand: fixed
 /// installments advance with the calendar, variable balances are updated
@@ -69,6 +71,7 @@ class _DebtFormState extends ConsumerState<_DebtForm> {
   Debt? get _existing => widget.existing;
 
   late final _creditor = TextEditingController(text: _existing?.creditor);
+  late String? _assetId = _existing?.assetId;
   late DebtType _type = _existing?.type ?? DebtType.consignado;
   late bool _fixed = _existing == null
       ? true
@@ -188,6 +191,8 @@ class _DebtFormState extends ConsumerState<_DebtForm> {
             clearInterestRate:
                 rate == null && _existing?.monthlyInterestRate != null,
             status: status,
+            assetId: _assetId,
+            clearAsset: _assetId == null && _existing?.assetId != null,
           );
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
@@ -318,6 +323,10 @@ class _DebtFormState extends ConsumerState<_DebtForm> {
                 helperText: 'Ajuda a saber quais dívidas pagar primeiro.',
               ),
             ),
+            _FinancedAssetPicker(
+              value: _assetId,
+              onChanged: (id) => setState(() => _assetId = id),
+            ),
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.only(top: 12),
@@ -349,6 +358,44 @@ class _DebtFormState extends ConsumerState<_DebtForm> {
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// "Bem financiado": links a financing to the imóvel/carro it bought, so the
+/// patrimônio shows how much of that bem is really yours.
+class _FinancedAssetPicker extends ConsumerWidget {
+  const _FinancedAssetPicker({required this.value, required this.onChanged});
+
+  final String? value;
+  final ValueChanged<String?> onChanged;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final summary = ref.watch(wealthSummaryProvider).value;
+    final bens = [
+      for (final g in summary?.assets ?? const <WealthGroup>[])
+        for (final i in g.items)
+          if (i.kind == WealthItemKind.asset &&
+              i.details['assetKind'] != 'a_receber')
+            i,
+    ];
+    if (bens.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: DropdownButtonFormField<String?>(
+        initialValue: bens.any((b) => b.id == value) ? value : null,
+        decoration: const InputDecoration(
+          labelText: 'Bem financiado (opcional)',
+          helperText: 'Ex.: o apartamento deste financiamento.',
+        ),
+        items: [
+          const DropdownMenuItem(value: null, child: Text('Nenhum')),
+          for (final b in bens)
+            DropdownMenuItem(value: b.id, child: Text(b.name)),
+        ],
+        onChanged: onChanged,
       ),
     );
   }

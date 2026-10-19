@@ -45,6 +45,8 @@ class DebtsRepository {
     String? monthlyInterestRate,
     bool clearInterestRate = false,
     DebtStatus? status,
+    String? assetId,
+    bool clearAsset = false,
   }) async {
     final data = {
       'creditor': creditor,
@@ -61,6 +63,7 @@ class DebtsRepository {
       else
         'monthlyInterestRate': ?monthlyInterestRate,
       'status': ?status?.apiValue,
+      if (clearAsset) 'assetId': null else 'assetId': ?assetId,
     };
     final response = id == null
         ? await _dio.post('/debts', data: data)

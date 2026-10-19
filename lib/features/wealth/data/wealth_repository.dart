@@ -62,12 +62,14 @@ class WealthRepository {
     required AssetKind kind,
     required String value,
     required bool isLiquid,
+    AssetBlock block = AssetBlock.outros,
   }) async {
     final data = {
       'name': name,
       'kind': kind.apiValue,
       'value': value,
       'isLiquid': isLiquid,
+      'block': block.name,
     };
     if (id == null) {
       await _dio.post('/assets', data: data);
