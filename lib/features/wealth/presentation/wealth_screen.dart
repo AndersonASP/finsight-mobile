@@ -156,6 +156,18 @@ class _WealthBody extends ConsumerWidget {
         if (summary.netWorthPercent != null)
           _NetWorthPercentCard(summary: summary),
         _ReserveCard(summary: summary),
+        for (final c in summary.diagnosis.concentration)
+          ListTile(
+            dense: true,
+            leading: const Icon(Icons.pie_chart_outline),
+            title: Text(
+              '${c.percent}% da ${c.bloco == 'reserva' ? 'reserva' : 'carteira de investimentos'} está em ${c.item}',
+            ),
+            subtitle: const Text(
+              'Com um valor relevante, vale diversificar entre instituições '
+              'e produtos. É só uma informação — o perfil é seu.',
+            ),
+          ),
         if ((double.tryParse(summary.reserveLoansOwed) ?? 0) > 0)
           ListTile(
             dense: true,

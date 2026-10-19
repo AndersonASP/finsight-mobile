@@ -239,10 +239,7 @@ void main() {
       expect(find.text('26,2% do seu patrimônio é seu'), findsOneWidget);
       expect(find.textContaining('Abaixo de 40%'), findsOneWidget);
       expect(find.text('Sua reserva cobre 2,4 de 12 meses'), findsOneWidget);
-      await tester.scrollUntilVisible(
-        find.text('Compromissos do cartão'),
-        300,
-      );
+      await tester.scrollUntilVisible(find.text('Compromissos do cartão'), 300);
       await tester.pumpAndSettle();
       expect(find.text('Compromissos do cartão'), findsOneWidget);
     },

@@ -33,6 +33,7 @@ import '../../what_if/presentation/wishlist_screen.dart';
 import '../../totals/application/totals_providers.dart';
 import '../../totals/presentation/totais_screen.dart';
 import '../../transactions/presentation/add_transaction_sheet.dart';
+import '../../what_if/presentation/asset_purchase_screen.dart';
 import '../../wealth/presentation/goals_screen.dart';
 import '../../wealth/application/wealth_providers.dart';
 import '../../wealth/presentation/wealth_screen.dart';
@@ -201,6 +202,11 @@ class _MenuTab extends ConsumerWidget {
             icon: Icons.help_outline,
             title: 'E se?',
             builder: (_) => const WhatIfScreen(),
+          ),
+          _MenuItem(
+            icon: Icons.add_home_work_outlined,
+            title: 'Compra de bem (imóvel, carro)',
+            builder: (_) => const AssetPurchaseScreen(),
           ),
           _MenuItem(
             icon: Icons.bookmark_border,

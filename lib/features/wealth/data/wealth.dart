@@ -80,6 +80,7 @@ class WealthDiagnosis {
     this.variacaoFinanceira,
     this.isMonthlyAverage = false,
     this.since,
+    this.concentration = const [],
   });
 
   /// Null while there's no data to compare (no history, no full month).
@@ -94,6 +95,9 @@ class WealthDiagnosis {
   final String? variacaoFinanceira;
   final bool isMonthlyAverage;
   final DateTime? since;
+
+  /// Blocos sitting mostly in one place (método R8) — information only.
+  final List<({String bloco, String item, String percent})> concentration;
   final String jurosMensais;
   final String dividaCara;
   final String reserva;
@@ -125,6 +129,14 @@ class WealthDiagnosis {
       dividaCara: json['dividaCara'] as String,
       reserva: json['reserva'] as String,
       disponivelNegativo: json['disponivelNegativo'] as bool,
+      concentration: [
+        for (final c in json['concentracao'] as List? ?? const [])
+          (
+            bloco: (c as Map)['bloco'] as String,
+            item: c['item'] as String,
+            percent: c['percent'] as String,
+          ),
+      ],
     );
   }
 }

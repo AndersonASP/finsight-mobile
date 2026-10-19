@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/network_providers.dart';
+import 'asset_purchase.dart';
 import 'what_if.dart';
 
 final whatIfRepositoryProvider = Provider<WhatIfRepository>((ref) {
@@ -19,6 +20,30 @@ class WhatIfRepository {
       data: request.toJson(),
     );
     return WhatIfResult.fromJson(Map<String, dynamic>.from(response.data));
+  }
+
+  /// "Compra de bem": impact on the patrimônio; nothing is saved.
+  Future<AssetPurchaseResult> simulateAssetPurchase(
+    AssetPurchaseRequest request,
+  ) async {
+    final response = await _dio.post(
+      '/insights/asset-purchase',
+      data: request.toJson(),
+    );
+    return AssetPurchaseResult.fromJson(
+      Map<String, dynamic>.from(response.data),
+    );
+  }
+
+  /// Registers it: bem at total cost, entrada, financing and its parcelas.
+  Future<void> registerAssetPurchase(
+    AssetPurchaseRequest request, {
+    required String name,
+  }) async {
+    await _dio.post(
+      '/insights/asset-purchase/register',
+      data: {...request.toJson(), 'name': name},
+    );
   }
 
   Future<List<WishlistItem>> wishlist() async {
