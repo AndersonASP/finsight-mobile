@@ -98,6 +98,8 @@ class _BorrowForm extends ConsumerStatefulWidget {
 
 class _BorrowFormState extends ConsumerState<_BorrowForm> {
   final _amountController = TextEditingController();
+  // Interest is mandatory: borrowing from the reserve always costs something.
+  final _rateController = TextEditingController(text: '10');
   String? _destinationAccountId;
   DateTime _date = DateTime.now();
   bool _saving = false;
@@ -106,7 +108,13 @@ class _BorrowFormState extends ConsumerState<_BorrowForm> {
   @override
   void dispose() {
     _amountController.dispose();
+    _rateController.dispose();
     super.dispose();
+  }
+
+  double? get _rate {
+    final value = double.tryParse(_rateController.text.replaceAll(',', '.'));
+    return value != null && value > 0 && value <= 100 ? value : null;
   }
 
   Future<void> _pickDate() async {
@@ -125,6 +133,11 @@ class _BorrowFormState extends ConsumerState<_BorrowForm> {
       setState(() => _error = 'Informe o valor e a conta de destino.');
       return;
     }
+    final rate = _rate;
+    if (rate == null) {
+      setState(() => _error = 'Informe os juros ao mês (maior que zero).');
+      return;
+    }
     setState(() {
       _saving = true;
       _error = null;
@@ -137,6 +150,7 @@ class _BorrowFormState extends ConsumerState<_BorrowForm> {
             destinationAccountId: _destinationAccountId!,
             principal: amount,
             borrowDate: _date,
+            monthlyInterestRate: rate,
           );
       ref.invalidate(accountsListProvider);
       ref.invalidate(activeReserveLoansProvider(widget.reserveAccount.id));
@@ -191,6 +205,20 @@ class _BorrowFormState extends ConsumerState<_BorrowForm> {
               '${_date.day.toString().padLeft(2, '0')}/${_date.month.toString().padLeft(2, '0')}/${_date.year}',
           onTap: _pickDate,
         ),
+        const Divider(height: 1),
+        FormRow(
+          leading: const Icon(Icons.percent),
+          child: TextField(
+            controller: _rateController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            onChanged: (_) => setState(() {}),
+            decoration: const InputDecoration(
+              border: InputBorder.none,
+              isDense: true,
+              labelText: 'Juros ao mês (%) — obrigatório',
+            ),
+          ),
+        ),
         const SizedBox(height: 12),
         Container(
           padding: const EdgeInsets.all(12),
@@ -208,7 +236,8 @@ class _BorrowFormState extends ConsumerState<_BorrowForm> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Juro de 10% ao mês sobre o valor retirado, cobrado enquanto o empréstimo não for pago.',
+                  'Juro de ${_rateController.text.isEmpty ? '?' : _rateController.text}% ao mês sobre o valor retirado, cobrado enquanto o empréstimo não for pago. '
+                  'Para só tirar dinheiro da reserva, sem devolver, use "Resgatar da reserva".',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),

@@ -226,7 +226,7 @@ void main() {
   });
 
   testWidgets(
-    'transferring economia with no conta reserva cadastrada offers creating one inline',
+    'economia with no conta reserva cadastrada offers creating one inline',
     (WidgetTester tester) async {
       await pumpForm(tester, _FakeBackend(accounts: oneAccount));
 
@@ -235,10 +235,7 @@ void main() {
       await tester.tap(find.widgetWithText(ListTile, 'economia'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Transferir para outra conta'));
-      await tester.pumpAndSettle();
-
-      // No Reserva account exists yet — the dropdown is replaced by a shortcut
+      // Economia always needs a destination — no toggle. No Reserva account exists yet — the dropdown is replaced by a shortcut
       // to create one, instead of showing an empty/dead-end dropdown.
       expect(find.text('criar conta reserva'), findsOneWidget);
       await tester.tap(find.text('criar conta reserva'));
@@ -254,8 +251,64 @@ void main() {
 
       // Back on the transaction form, the new reserve account is already
       // selected as the transfer destination.
-      expect(find.text('Reserva de emergência'), findsOneWidget);
+      expect(find.textContaining('Reserva de emergência'), findsOneWidget);
       expect(find.text('criar conta reserva'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'economia needs a destination and offers reserva and investimento accounts only',
+    (WidgetTester tester) async {
+      final backend = _FakeBackend(
+        accounts: const [
+          ...oneAccount,
+          {
+            'id': 'acc-cash',
+            'name': 'Carteira',
+            'type': 'cash',
+            'initialBalance': '0.00',
+          },
+          {
+            'id': 'acc-inv',
+            'name': 'Corretora',
+            'type': 'investment',
+            'initialBalance': '0.00',
+          },
+        ],
+      );
+      await pumpForm(tester, backend);
+      await tester.enterText(find.byType(TextField).first, '10000');
+      await tester.tap(find.text('saída'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(ListTile, 'economia'));
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(
+        find.widgetWithText(FilledButton, 'adicionar economia'),
+      );
+      await tester.tap(find.widgetWithText(FilledButton, 'adicionar economia'));
+      await tester.pumpAndSettle();
+      expect(backend.lastTransactionPosted, isNull);
+      expect(
+        find.text(
+          'Escolha onde guardar: uma conta reserva ou de investimento.',
+        ),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Carteira'), findsNothing);
+      await tester.tap(find.textContaining('Corretora').last);
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(
+        find.widgetWithText(FilledButton, 'adicionar economia'),
+      );
+      await tester.tap(find.widgetWithText(FilledButton, 'adicionar economia'));
+      await tester.pumpAndSettle();
+
+      expect(backend.lastTransactionPosted!['type'], 'economia');
+      expect(backend.lastTransactionPosted!['counterpartAccountId'], 'acc-inv');
     },
   );
 

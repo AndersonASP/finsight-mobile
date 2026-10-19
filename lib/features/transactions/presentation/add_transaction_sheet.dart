@@ -44,6 +44,7 @@ Future<void> showAddTransactionForm(
   String? initialAmount,
   String? initialDescription,
   String? initialAccountId,
+  String? initialCounterpartAccountId,
 }) {
   return showModalBottomSheet(
     context: context,
@@ -55,7 +56,29 @@ Future<void> showAddTransactionForm(
       initialAmount: initialAmount,
       initialDescription: initialDescription,
       initialAccountId: initialAccountId,
+      initialCounterpartAccountId: initialCounterpartAccountId,
     ),
+  );
+}
+
+/// "Resgatar da reserva": a [FinTransactionType.transferencia] from the
+/// reserve back into a checking account. Plain migration — the money leaves
+/// the reserve with no obligation to return (unlike an empréstimo da
+/// reserva, which charges interest until it's paid back).
+Future<void> showReserveWithdrawalForm(
+  BuildContext context, {
+  required Account reserveAccount,
+  required List<Account> accounts,
+}) {
+  final checking = accounts.where(
+    (a) => a.type == AccountType.checking && a.id != reserveAccount.id,
+  );
+  return showAddTransactionForm(
+    context,
+    type: FinTransactionType.transferencia,
+    initialAccountId: reserveAccount.id,
+    initialDescription: 'Resgate da reserva',
+    initialCounterpartAccountId: checking.isEmpty ? null : checking.first.id,
   );
 }
 
@@ -158,6 +181,7 @@ class _TransactionFormSheet extends ConsumerStatefulWidget {
     this.initialAmount,
     this.initialDescription,
     this.initialAccountId,
+    this.initialCounterpartAccountId,
     this.existing,
   });
 
@@ -169,6 +193,7 @@ class _TransactionFormSheet extends ConsumerStatefulWidget {
   final String? initialAmount;
   final String? initialDescription;
   final String? initialAccountId;
+  final String? initialCounterpartAccountId;
 
   /// When set, the form edits this transaction instead of creating a new
   /// one — every field below pre-fills from it.
@@ -200,8 +225,9 @@ class _TransactionFormSheetState extends ConsumerState<_TransactionFormSheet> {
   // for display; until the user picks one, the existing transaction's
   // categoryId is resolved against the loaded category list in build().
   Category? _category;
-  late String? _counterpartAccountId = widget.existing?.counterpartAccountId;
-  late bool _isTransfer = widget.existing?.counterpartAccountId != null;
+  late String? _counterpartAccountId =
+      widget.existing?.counterpartAccountId ??
+      widget.initialCounterpartAccountId;
   late DateTime _date =
       widget.existing?.date ?? widget.initialDate ?? DateTime.now();
   // Recurrence only applies to a brand-new lançamento (null = "não repete")
@@ -397,8 +423,16 @@ class _TransactionFormSheetState extends ConsumerState<_TransactionFormSheet> {
       setState(() => _error = 'Informe um valor.');
       return;
     }
-    if (_isTransfer && _counterpartAccountId == null) {
-      setState(() => _error = 'Escolha a conta de destino da transferência.');
+    if (_type.isTransfer && _counterpartAccountId == null) {
+      setState(
+        () => _error = _type == FinTransactionType.economia
+            ? 'Escolha onde guardar: uma conta reserva ou de investimento.'
+            : 'Escolha a conta de destino.',
+      );
+      return;
+    }
+    if (_type.isTransfer && _counterpartAccountId == accountId) {
+      setState(() => _error = 'A conta de destino precisa ser outra.');
       return;
     }
     if (accountId == null) {
@@ -417,7 +451,9 @@ class _TransactionFormSheetState extends ConsumerState<_TransactionFormSheet> {
     });
     final categoryId = resolvedCategory?.id;
     final description = _descriptionController.text.trim();
-    final counterpartAccountId = _isTransfer ? _counterpartAccountId : null;
+    final counterpartAccountId = _type.isTransfer
+        ? _counterpartAccountId
+        : null;
     try {
       final sync = ref.read(syncServiceProvider);
       final edited = FinTransaction(
@@ -542,53 +578,15 @@ class _TransactionFormSheetState extends ConsumerState<_TransactionFormSheet> {
               title: resolvedAccount?.name ?? 'conta',
               onTap: () => _pickAccount(accounts, effectiveAccountId),
             ),
-            if (_type == FinTransactionType.economia) ...[
+            if (_type.isTransfer) ...[
               const Divider(height: 1),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                secondary: const Icon(Icons.sync_alt),
-                title: const Text('Transferir para outra conta'),
-                value: _isTransfer,
-                onChanged: (value) => setState(() => _isTransfer = value),
+              _DestinationPicker(
+                type: _type,
+                originAccountId: effectiveAccountId,
+                value: _counterpartAccountId,
+                onChanged: (value) =>
+                    setState(() => _counterpartAccountId = value),
               ),
-              if (_isTransfer)
-                accountsAsync.when(
-                  loading: () => const LinearProgressIndicator(),
-                  error: (e, _) => Text('Erro ao carregar contas: $e'),
-                  data: (accounts) {
-                    // Only "Reserva" accounts show up here — that's the
-                    // caixinha this transfer is meant to feed, not just any
-                    // account the user happens to have.
-                    final reserveAccounts = accounts
-                        .where(
-                          (a) =>
-                              a.type == AccountType.savingsReserve &&
-                              a.id != effectiveAccountId,
-                        )
-                        .toList();
-                    if (reserveAccounts.isEmpty) {
-                      return OutlinedButton.icon(
-                        onPressed: () async {
-                          final created = await showCreateAccountSheet(
-                            context,
-                            initialType: AccountType.savingsReserve,
-                          );
-                          if (created != null) {
-                            setState(() => _counterpartAccountId = created.id);
-                          }
-                        },
-                        icon: const Icon(Icons.add),
-                        label: const Text('criar conta reserva'),
-                      );
-                    }
-                    return _AccountDropdown(
-                      accounts: reserveAccounts,
-                      value: _counterpartAccountId,
-                      onChanged: (value) =>
-                          setState(() => _counterpartAccountId = value),
-                    );
-                  },
-                ),
             ],
             const Divider(height: 1),
             FormRow(
@@ -801,26 +799,72 @@ class _RecurrencePickerSheetState extends State<_RecurrencePickerSheet> {
   }
 }
 
-class _AccountDropdown extends StatelessWidget {
-  const _AccountDropdown({
-    required this.accounts,
+/// Where a transfer goes. Economia ("guardar") only lands in a Reserva or
+/// Investimento account — the API enforces the same; a transferência can go
+/// to any other account.
+class _DestinationPicker extends ConsumerWidget {
+  const _DestinationPicker({
+    required this.type,
+    required this.originAccountId,
     required this.value,
     required this.onChanged,
   });
 
-  final List<Account> accounts;
+  final FinTransactionType type;
+  final String? originAccountId;
   final String? value;
   final ValueChanged<String?> onChanged;
 
+  bool _accepts(Account a) =>
+      a.id != originAccountId &&
+      (type != FinTransactionType.economia ||
+          a.type == AccountType.savingsReserve ||
+          a.type == AccountType.investment);
+
   @override
-  Widget build(BuildContext context) {
-    return DropdownButtonFormField<String>(
-      initialValue: accounts.any((a) => a.id == value) ? value : null,
-      decoration: const InputDecoration(labelText: 'Conta reserva'),
-      items: accounts
-          .map((a) => DropdownMenuItem(value: a.id, child: Text(a.name)))
-          .toList(),
-      onChanged: onChanged,
+  Widget build(BuildContext context, WidgetRef ref) {
+    final accountsAsync = ref.watch(accountsListProvider);
+    return accountsAsync.when(
+      loading: () => const LinearProgressIndicator(),
+      error: (e, _) => Text('Erro ao carregar contas: $e'),
+      data: (accounts) {
+        final options = accounts.where(_accepts).toList();
+        if (options.isEmpty) {
+          return OutlinedButton.icon(
+            onPressed: () async {
+              final created = await showCreateAccountSheet(
+                context,
+                initialType: type == FinTransactionType.economia
+                    ? AccountType.savingsReserve
+                    : null,
+              );
+              if (created != null) onChanged(created.id);
+            },
+            icon: const Icon(Icons.add),
+            label: Text(
+              type == FinTransactionType.economia
+                  ? 'criar conta reserva'
+                  : 'criar conta de destino',
+            ),
+          );
+        }
+        return DropdownButtonFormField<String>(
+          initialValue: options.any((a) => a.id == value) ? value : null,
+          decoration: InputDecoration(
+            labelText: type == FinTransactionType.economia
+                ? 'Guardar em (reserva ou investimento)'
+                : 'Para a conta',
+          ),
+          items: [
+            for (final a in options)
+              DropdownMenuItem(
+                value: a.id,
+                child: Text('${a.name} · ${a.type.label.toLowerCase()}'),
+              ),
+          ],
+          onChanged: onChanged,
+        );
+      },
     );
   }
 }

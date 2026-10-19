@@ -42,9 +42,7 @@ int _checkingSaldoDelta(
     delta += t.type == FinTransactionType.entrada ? amount : -amount;
   }
   final counterpart = t.counterpartAccountId;
-  if (counterpart != null &&
-      t.type == FinTransactionType.economia &&
-      isChecking(counterpart)) {
+  if (counterpart != null && t.type.isTransfer && isChecking(counterpart)) {
     delta += amount;
   }
   return delta;
@@ -67,6 +65,8 @@ Map<String, _DayEffect> _effectsByDay(
         effect.diario += amount;
       case FinTransactionType.economia:
         effect.economia += amount;
+      case FinTransactionType.transferencia:
+        break; // no column: neither spending nor saving
     }
     effect.saldo += _checkingSaldoDelta(t, accountTypes) * sign;
   }
@@ -279,7 +279,9 @@ DayDetailItem _itemFor(
       FinTransactionType.saida => SaldosColumnFilter.saida,
       FinTransactionType.diario => SaldosColumnFilter.diario,
       FinTransactionType.economia => SaldosColumnFilter.economia,
+      FinTransactionType.transferencia => SaldosColumnFilter.todas,
     },
+    isTransfer: t.type == FinTransactionType.transferencia,
     description: description.isNotEmpty ? description : t.type.apiValue,
     date: DateTime(t.date.year, t.date.month, t.date.day),
     amount: _fromCents(_cents(t.amount)),

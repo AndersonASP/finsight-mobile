@@ -12,6 +12,9 @@ class AppColors {
   static const diario = Color(0xFFD9467A); // rosa
   static const economia = Color(0xFF65A844); // verde suave
   static const cartao = Color(0xFF7C5CE7); // roxo
+  static const transferencia = Color(
+    0xFF5F7A8A,
+  ); // azul acinzentado: só muda de conta
 
   static const deficit = Color(0xFFD2531E);
   static const surplus = Color(0xFF2E8B57);

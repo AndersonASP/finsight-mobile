@@ -144,6 +144,8 @@ void main() {
 
       await tester.tap(find.widgetWithIcon(IconButton, Icons.swap_horiz));
       await tester.pumpAndSettle();
+      await tester.tap(find.text('Empréstimo da reserva'));
+      await tester.pumpAndSettle();
 
       // Defaults to "Pegar empréstimo".
       expect(find.text('Confirmar empréstimo'), findsOneWidget);
@@ -163,8 +165,38 @@ void main() {
       expect(backend.lastLoanPosted!['reserveAccountId'], 'acc-reserve');
       expect(backend.lastLoanPosted!['destinationAccountId'], 'acc-checking');
       expect(backend.lastLoanPosted!['principal'], '500.00');
+      expect(backend.lastLoanPosted!['monthlyInterestRate'], 10);
     },
   );
+
+  testWidgets('a loan without interest is refused before reaching the API', (
+    WidgetTester tester,
+  ) async {
+    final backend = _FakeBackend();
+    await pumpAccounts(tester, backend);
+    await tester.tap(find.widgetWithIcon(IconButton, Icons.swap_horiz));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Empréstimo da reserva'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).first, '50000');
+    await tester.tap(find.byType(DropdownButtonFormField<String>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Conta corrente').last);
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Juros ao mês (%) — obrigatório'),
+      '0',
+    );
+    await tester.tap(find.text('Confirmar empréstimo'));
+    await tester.pumpAndSettle();
+
+    expect(backend.lastLoanPosted, isNull);
+    expect(
+      find.text('Informe os juros ao mês (maior que zero).'),
+      findsOneWidget,
+    );
+  });
 
   testWidgets(
     'paying back an open loan shows what is owed and posts the repayment amount',
@@ -183,6 +215,8 @@ void main() {
       await pumpAccounts(tester, backend);
 
       await tester.tap(find.widgetWithIcon(IconButton, Icons.swap_horiz));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Empréstimo da reserva'));
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Pagar empréstimo'));

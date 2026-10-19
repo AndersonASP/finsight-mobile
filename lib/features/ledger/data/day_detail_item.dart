@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/theme/app_colors.dart';
 import 'saldos_column_filter.dart';
 
 class InstallmentInfo {
@@ -56,6 +57,7 @@ class DayDetailItem {
     this.recurring,
     this.paid,
     this.isPending = false,
+    this.isTransfer = false,
   });
 
   final String id;
@@ -76,11 +78,19 @@ class DayDetailItem {
   /// received yet — see `PendingChanges`.
   final bool isPending;
 
+  /// A `transferencia` between the user's own accounts — it belongs to no
+  /// Saldos column (so [type] is `todas`) and gets its own look.
+  final bool isTransfer;
+
+  Color get color => isTransfer ? AppColors.transferencia : type.color;
+  IconData get icon => isTransfer ? Icons.sync_alt : type.icon;
+
   factory DayDetailItem.fromJson(Map<String, dynamic> json) {
     final colorHex = json['categoryColor'] as String?;
     return DayDetailItem(
       id: json['id'] as String,
       type: _typeFromApi(json['type'] as String),
+      isTransfer: json['type'] == 'transferencia',
       description: json['description'] as String,
       date: DateTime.parse(json['date'] as String),
       amount: json['amount'] as String,
@@ -107,5 +117,6 @@ SaldosColumnFilter _typeFromApi(String value) => switch (value) {
   'diario' => SaldosColumnFilter.diario,
   'economia' => SaldosColumnFilter.economia,
   'cartao' => SaldosColumnFilter.cartao,
+  'transferencia' => SaldosColumnFilter.todas,
   _ => throw ArgumentError('Unknown day detail item type: $value'),
 };

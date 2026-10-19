@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/format/money.dart';
 import '../../../core/widgets/brl_amount_field.dart';
 import '../../reserve_loans/presentation/reserve_loan_sheet.dart';
+import '../../transactions/presentation/add_transaction_sheet.dart';
 import '../application/accounts_providers.dart';
 import '../data/account.dart';
 import '../data/accounts_repository.dart';
@@ -90,11 +91,38 @@ class _AccountTile extends ConsumerWidget {
             },
           ),
           if (account.type == AccountType.savingsReserve)
-            IconButton(
-              tooltip: 'Empréstimo da reserva',
+            PopupMenuButton<_ReserveAction>(
+              tooltip: 'Usar a reserva',
               icon: const Icon(Icons.swap_horiz),
-              onPressed: () =>
-                  showReserveLoanSheet(context, reserveAccount: account),
+              onSelected: (action) => switch (action) {
+                _ReserveAction.withdraw => showReserveWithdrawalForm(
+                  context,
+                  reserveAccount: account,
+                  accounts: ref.read(accountsListProvider).value ?? const [],
+                ),
+                _ReserveAction.loan => showReserveLoanSheet(
+                  context,
+                  reserveAccount: account,
+                ),
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(
+                  value: _ReserveAction.withdraw,
+                  child: ListTile(
+                    leading: Icon(Icons.sync_alt),
+                    title: Text('Resgatar da reserva'),
+                    subtitle: Text('Sai da reserva, sem compromisso de repor'),
+                  ),
+                ),
+                PopupMenuItem(
+                  value: _ReserveAction.loan,
+                  child: ListTile(
+                    leading: Icon(Icons.request_quote_outlined),
+                    title: Text('Empréstimo da reserva'),
+                    subtitle: Text('Com juros, até devolver'),
+                  ),
+                ),
+              ],
             ),
         ],
       ),
@@ -285,3 +313,5 @@ class _CreateAccountSheetState extends ConsumerState<_CreateAccountSheet> {
     );
   }
 }
+
+enum _ReserveAction { withdraw, loan }

@@ -116,6 +116,7 @@ class _AddScenarioTransactionSheetState
               initialValue: _type,
               decoration: const InputDecoration(labelText: 'Tipo'),
               items: FinTransactionType.values
+                  .where((t) => t != FinTransactionType.transferencia)
                   .map((t) => DropdownMenuItem(value: t, child: Text(t.label)))
                   .toList(),
               onChanged: (value) => setState(() => _type = value ?? _type),

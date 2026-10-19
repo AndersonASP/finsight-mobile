@@ -33,6 +33,7 @@ class ReserveLoansRepository {
     required String destinationAccountId,
     required String principal,
     required DateTime borrowDate,
+    required double monthlyInterestRate,
     String? description,
   }) async {
     final response = await _dio.post(
@@ -42,6 +43,7 @@ class ReserveLoansRepository {
         'destinationAccountId': destinationAccountId,
         'principal': principal,
         'borrowDate': _formatDate(borrowDate),
+        'monthlyInterestRate': monthlyInterestRate,
         if (description != null && description.isNotEmpty)
           'description': description,
       },

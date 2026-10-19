@@ -363,8 +363,8 @@ class _ItemTile extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           CircleAvatar(
-            backgroundColor: item.type.color,
-            child: Icon(item.type.icon, color: Colors.white, size: 16),
+            backgroundColor: item.color,
+            child: Icon(item.icon, color: Colors.white, size: 16),
           ),
           const SizedBox(width: 12),
           Expanded(
