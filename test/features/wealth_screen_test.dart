@@ -182,7 +182,7 @@ void main() {
       expect(find.textContaining('Ela vem antes de tudo'), findsOneWidget);
       expect(find.textContaining('15.000,00'), findsOneWidget);
       expect(find.textContaining('18.200,00'), findsOneWidget);
-      expect(find.text('Sua reserva cobre 2,4 de 8 meses'), findsOneWidget);
+      expect(find.text('2,4 de 8 meses'), findsOneWidget);
       expect(find.text('O que você tem'), findsOneWidget);
       expect(find.text('Saldo devedor'), findsOneWidget);
     },
@@ -236,9 +236,9 @@ void main() {
       addTearDown(() => _extra = const {});
       await pump(tester);
 
-      expect(find.text('26,2% do seu patrimônio é seu'), findsOneWidget);
+      expect(find.text('26,2%'), findsOneWidget);
       expect(find.textContaining('Abaixo de 40%'), findsOneWidget);
-      expect(find.text('Sua reserva cobre 2,4 de 12 meses'), findsOneWidget);
+      expect(find.text('2,4 de 12 meses'), findsOneWidget);
       await tester.scrollUntilVisible(find.text('Compromissos do cartão'), 300);
       await tester.pumpAndSettle();
       expect(find.text('Compromissos do cartão'), findsOneWidget);
